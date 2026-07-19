@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.vscode/
+.git/
+.gitignore
+tesseract_setup.exe
+*.md
+.cursor/
+agent-transcripts/

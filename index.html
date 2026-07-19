@@ -1359,7 +1359,8 @@
   'use strict';
 
   /* ── Constants ── */
-  const API_BASE    = 'http://127.0.0.1:8000';
+  // Same-origin by default (Coolify / production). Override with ?api=http://host:port for local split UI.
+  const API_BASE    = new URLSearchParams(location.search).get('api') || '';
   const API_ANALYZE = `${API_BASE}/api/v1/analyze`;
   const API_HEALTH  = `${API_BASE}/health`;
 
@@ -1731,7 +1732,7 @@
       showForm();
       resetLoaderSteps();
       const msg = err.name === 'TypeError'
-        ? 'Could not reach the backend. Ensure uvicorn is running on port 8000.'
+        ? 'Could not reach the backend. Check that the API is running and reachable.'
         : err.message;
       showError(msg);
     } finally {

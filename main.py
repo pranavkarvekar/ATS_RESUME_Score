@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import textwrap
 import time
 from contextlib import asynccontextmanager
@@ -23,9 +24,11 @@ from typing import Any
 
 import uvicorn
 from dotenv import load_dotenv
+from pathlib import Path
+
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from openai import AsyncOpenAI, APIConnectionError, APIStatusError, APITimeoutError
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
@@ -208,6 +211,43 @@ def _extract_tier2_pdfplumber(file_bytes: bytes) -> str:
 # ─────────────────────────────────────────────
 # Tier 3 — OCR Hard Fallback
 # ─────────────────────────────────────────────
+def _resolve_tesseract_cmd() -> str | None:
+    """Prefer env override, then Linux PATH, then common Windows install paths."""
+    override = os.getenv("TESSERACT_CMD", "").strip()
+    if override and Path(override).exists():
+        return override
+
+    which = shutil.which("tesseract")
+    if which:
+        return which
+
+    for candidate in (
+        r"D:\OCR_Setup\tesseract.exe",
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+    ):
+        if Path(candidate).exists():
+            return candidate
+    return None
+
+
+def _resolve_poppler_path() -> str | None:
+    """Prefer env override, then PATH (Linux/Docker), then common Windows Poppler bin."""
+    override = os.getenv("POPPLER_PATH", "").strip()
+    if override and Path(override).is_dir():
+        return override
+
+    if shutil.which("pdftoppm"):
+        return None  # pdf2image will find Poppler on PATH
+
+    for candidate in (
+        r"C:\poppler\poppler-24.08.0\Library\bin",
+        r"C:\poppler\Library\bin",
+    ):
+        if Path(candidate).is_dir():
+            return candidate
+    return None
+
+
 def _extract_tier3_ocr(file_bytes: bytes) -> str:
     """
     Rasterise pages via pdf2image and extract tokens via pytesseract.
@@ -217,12 +257,16 @@ def _extract_tier3_ocr(file_bytes: bytes) -> str:
         from pdf2image import convert_from_bytes
         import pytesseract
 
-        # Tesseract binary path — required on Windows
-        pytesseract.pytesseract.tesseract_cmd = r"D:\OCR_Setup\tesseract.exe"
+        tesseract_cmd = _resolve_tesseract_cmd()
+        if tesseract_cmd:
+            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
-        # Poppler bin path — required on Windows (not auto-detected from PATH)
-        poppler_path = r"C:\poppler\poppler-24.08.0\Library\bin"
-        images = convert_from_bytes(file_bytes, dpi=300, fmt="png", poppler_path=poppler_path)
+        poppler_path = _resolve_poppler_path()
+        convert_kwargs: dict[str, Any] = {"dpi": 300, "fmt": "png"}
+        if poppler_path:
+            convert_kwargs["poppler_path"] = poppler_path
+
+        images = convert_from_bytes(file_bytes, **convert_kwargs)
         pages: list[str] = []
         for img in images:
             pages.append(pytesseract.image_to_string(img, lang="eng"))
@@ -703,6 +747,20 @@ def _parse_skills_input(skills_raw: str) -> list[str]:
 # ─────────────────────────────────────────────
 # REST Endpoints
 # ─────────────────────────────────────────────
+BASE_DIR = Path(__file__).resolve().parent
+INDEX_HTML = BASE_DIR / "index.html"
+
+
+@app.get("/", tags=["UI"], summary="Serve the ATS dashboard.")
+async def serve_ui() -> FileResponse:
+    if not INDEX_HTML.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="index.html not found.",
+        )
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
 @app.get("/health", tags=["System"], summary="Health check endpoint.")
 async def health_check() -> JSONResponse:
     return JSONResponse(
@@ -849,10 +907,11 @@ async def analyze_resume(
 # Entry Point
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
+    reload_enabled = os.getenv("RELOAD", "false").lower() in ("1", "true", "yes")
     uvicorn.run(
         "main:app",
         host=os.getenv("HOST", "0.0.0.0"),
         port=int(os.getenv("PORT", "8000")),
-        reload=True,
+        reload=reload_enabled,
         log_level="info",
     )
