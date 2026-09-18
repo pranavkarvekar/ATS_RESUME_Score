@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compare Analyses - ATS Resume Analyzer v2</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%233B82F6'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/></svg>">
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/globals.css">
+  <link rel="stylesheet" href="/css/analyze.css">
+  <style>
+    /* ── Compare-specific styles ── */
+    .compare-select-panel {
+      display: grid;
+      grid-template-columns: 1fr 48px 1fr;
+      align-items: start;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .compare-vs {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%; padding-top: 2rem;
+      font-size: 0.85rem; font-weight: 700; color: var(--text-tertiary);
+      letter-spacing: 0.1em;
+    }
+    .select-label {
+      font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary);
+      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem;
+    }
+    .history-select {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--radius-md);
+      padding: 0.5rem 0.75rem;
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      font-family: var(--font-sans);
+      height: 42px;
+    }
+    .history-select:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+    /* Compare grid */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    .compare-col { display: flex; flex-direction: column; gap: 1rem; }
+    .compare-col-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 0.75rem; border-bottom: 2px solid var(--border-primary);
+      margin-bottom: 0.25rem;
+    }
+    .compare-col-a .compare-col-header { border-color: var(--accent-primary); }
+    .compare-col-b .compare-col-header { border-color: var(--accent-secondary); }
+
+    .compare-name { font-size: 1.1rem; font-weight: 700; }
+    .compare-meta { font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.15rem; }
+
+    /* Score blocks side-by-side */
+    .compare-score-block {
+      text-align: center;
+      padding: 1.5rem 1rem;
+      border-radius: var(--radius-lg);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+    }
+    .compare-score-num {
+      font-family: var(--font-mono);
+      font-size: 3rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .compare-score-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+      margin-top: 0.5rem; display: block;
+    }
+
+    /* Bar comparison */
+    .compare-bar-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    /* Diff highlight */
+    .diff-better { color: var(--color-success) !important; }
+    .diff-worse  { color: var(--color-error) !important; }
+
+    /* Skill comparison */
+    .skill-diff-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;
+    }
+
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid var(--border-secondary);
+      border-top-color: var(--accent-primary); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 3rem auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .placeholder-select {
+      text-align: center; padding: 3rem; color: var(--text-tertiary);
+    }
+
+    @media (max-width: 900px) {
+      .compare-grid, .compare-select-panel, .compare-bar-row, .skill-diff-grid {
+        grid-template-columns: 1fr;
+      }
+      .compare-vs { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span>ATS Analyzer</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/" class="nav-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="nav-label">Analyze</span>
+      </a>
+      <a href="/pages/history.html" class="nav-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+        <span class="nav-label">History</span>
+      </a>
+      <a href="/pages/analytics.html" class="nav-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span class="nav-label">Analytics</span>
+      </a>
+      <a href="/pages/compare.html" class="nav-item active">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="18"/></svg>
+        <span class="nav-label">Compare</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-ghost" id="theme-toggle" title="Toggle theme">
+        <svg id="theme-icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="theme-icon-sun" class="hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+      </button>
+      <span class="text-xs text-secondary">
+        <span class="status-dot" id="api-status"></span> v2.0.0
+      </span>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-title">Compare Analyses</h1>
+      <p class="page-subtitle">Select two past analyses to compare scores, skills, and experience side by side.</p>
+    </div>
+
+    <!-- Selectors -->
+    <div class="compare-select-panel">
+      <div>
+        <div class="select-label">Candidate A</div>
+        <select id="select-a" class="history-select">
+          <option value="">Loading...</option>
+        </select>
+      </div>
+      <div class="compare-vs">VS</div>
+      <div>
+        <div class="select-label">Candidate B</div>
+        <select id="select-b" class="history-select">
+          <option value="">Loading...</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="text-align:center; margin-bottom:2rem;">
+      <button class="btn btn-primary" id="compare-btn" disabled>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="18"/></svg>
+        Compare Candidates
+      </button>
+    </div>
+
+    <!-- Result Area -->
+    <div id="compare-result">
+      <div class="placeholder-select card">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="opacity:0.3; margin-bottom:1rem;"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="18"/></svg>
+        <p style="color:var(--text-tertiary); font-size:0.9rem;">Select two candidates above and click Compare</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="/js/api.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  // ── Theme ──
+  const savedTheme = localStorage.getItem('ats-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  const moon = document.getElementById('theme-icon-moon');
+  const sun = document.getElementById('theme-icon-sun');
+  function applyTheme(t) { moon.classList.toggle('hidden', t !== 'dark'); sun.classList.toggle('hidden', t === 'dark'); }
+  applyTheme(savedTheme);
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('ats-theme', next);
+    applyTheme(next);
+  });
+
+  // ── Health ──
+  API.healthCheck()
+    .then(() => document.getElementById('api-status').className = 'status-dot online')
+    .catch(() => document.getElementById('api-status').className = 'status-dot offline');
+
+  const selectA = document.getElementById('select-a');
+  const selectB = document.getElementById('select-b');
+  const compareBtn = document.getElementById('compare-btn');
+
+  // ── Load history into dropdowns ──
+  let allRecords = [];
+  try {
+    const hist = await API.getHistory(1, 100);
+    allRecords = hist.items || [];
+
+    const buildOptions = (sel, preselect) => {
+      sel.innerHTML = '<option value="">— Select candidate —</option>';
+      allRecords.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = `${r.candidate_name}  (${r.total_score.toFixed(1)}/100 · ${new Date(r.created_at).toLocaleDateString()})`;
+        if (preselect && r.id === preselect) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    };
+
+    // Pre-fill from URL params
+    const params = new URLSearchParams(window.location.search);
+    const preA = params.get('a');
+    const preB = params.get('b');
+    buildOptions(selectA, preA);
+    buildOptions(selectB, preB);
+
+    // Auto-compare if both params present
+    if (preA && preB) {
+      compareBtn.disabled = false;
+      doCompare();
+    }
+  } catch(err) {
+    selectA.innerHTML = `<option value="">Error loading history</option>`;
+    selectB.innerHTML = `<option value="">Error loading history</option>`;
+    showToast('Could not load history: ' + err.message, 'error');
+  }
+
+  // Enable button when both selected
+  function checkSelects() {
+    compareBtn.disabled = !(selectA.value && selectB.value && selectA.value !== selectB.value);
+  }
+  selectA.addEventListener('change', checkSelects);
+  selectB.addEventListener('change', checkSelects);
+
+  compareBtn.addEventListener('click', doCompare);
+
+  async function doCompare() {
+    const idA = selectA.value;
+    const idB = selectB.value;
+    if (!idA || !idB || idA === idB) return;
+
+    // Update URL without reload
+    const newParams = new URLSearchParams({ a: idA, b: idB });
+    window.history.replaceState(null, '', `?${newParams}`);
+
+    document.getElementById('compare-result').innerHTML = `<div style="text-align:center;padding:3rem;"><div class="spinner"></div><p class="text-sm text-secondary" style="margin-top:1rem;">Loading comparison...</p></div>`;
+
+    try {
+      const data = await API.compareAnalyses(idA, idB);
+      renderComparison(data.analysis_a, data.analysis_b);
+    } catch(err) {
+      document.getElementById('compare-result').innerHTML = `<div class="card" style="color:var(--color-error);text-align:center;padding:2rem;">${err.message}</div>`;
+    }
+  }
+
+  function getScoreColor(s) {
+    if (s >= 90) return 'var(--score-excellent)';
+    if (s >= 70) return 'var(--score-high)';
+    if (s >= 40) return 'var(--score-medium)';
+    return 'var(--score-low)';
+  }
+  function getScoreLabel(s) {
+    if (s >= 90) return 'EXCELLENT FIT';
+    if (s >= 70) return 'STRONG FIT';
+    if (s >= 40) return 'MODERATE FIT';
+    return 'WEAK FIT';
+  }
+
+  function renderComparison(a, b) {
+    const winner = a.total_score >= b.total_score ? 'A' : 'B';
+    const diff = Math.abs(a.total_score - b.total_score).toFixed(1);
+
+    // Identify skills unique to each
+    const skillsA = new Set(a.parsed_resume.skills.map(s => s.toLowerCase()));
+    const skillsB = new Set(b.parsed_resume.skills.map(s => s.toLowerCase()));
+    const onlyInA = a.parsed_resume.skills.filter(s => !skillsB.has(s.toLowerCase()));
+    const onlyInB = b.parsed_resume.skills.filter(s => !skillsA.has(s.toLowerCase()));
+    const inBoth  = a.parsed_resume.skills.filter(s => skillsB.has(s.toLowerCase()));
+
+    document.getElementById('compare-result').innerHTML = `
+      <!-- Winner Banner -->
+      <div class="card" style="margin-bottom:1.5rem; background: ${winner === 'A' ? 'rgba(59,130,246,0.08)' : 'rgba(139,92,246,0.08)'}; border-color: ${winner === 'A' ? 'var(--accent-primary)' : 'var(--accent-secondary)'};">
+        <div style="text-align:center;">
+          <div style="font-size:0.75rem; font-weight:600; letter-spacing:0.08em; color:var(--text-tertiary); text-transform:uppercase; margin-bottom:0.4rem;">Top Candidate</div>
+          <div style="font-size:1.3rem; font-weight:700; color:${winner === 'A' ? 'var(--accent-primary)' : 'var(--accent-secondary)'};">
+            ${winner === 'A' ? a.candidate_name : b.candidate_name}
+          </div>
+          <div class="text-sm text-secondary" style="margin-top:0.25rem;">leads by ${diff} points</div>
+        </div>
+      </div>
+
+      <!-- Score blocks -->
+      <div class="compare-grid" style="margin-bottom:1.5rem;">
+        <div class="compare-score-block">
+          <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-primary); margin-bottom:0.5rem;">Candidate A</div>
+          <div class="compare-name">${a.candidate_name}</div>
+          <div class="compare-meta">${new Date(a.created_at).toLocaleDateString()}</div>
+          <div class="compare-score-num" style="color:${getScoreColor(a.total_score)}; margin-top:1rem;">${a.total_score.toFixed(1)}</div>
+          <span class="compare-score-label" style="color:${getScoreColor(a.total_score)};">${getScoreLabel(a.total_score)}</span>
+          <div class="metadata-chips" style="justify-content:center; margin-top:0.75rem;">
+            <span class="badge badge-neutral">${a.total_experience_months} months exp</span>
+            <span class="badge badge-neutral">${a.parsed_resume.skills.length} skills</span>
+          </div>
+        </div>
+        <div class="compare-score-block">
+          <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--accent-secondary); margin-bottom:0.5rem;">Candidate B</div>
+          <div class="compare-name">${b.candidate_name}</div>
+          <div class="compare-meta">${new Date(b.created_at).toLocaleDateString()}</div>
+          <div class="compare-score-num" style="color:${getScoreColor(b.total_score)}; margin-top:1rem;">${b.total_score.toFixed(1)}</div>
+          <span class="compare-score-label" style="color:${getScoreColor(b.total_score)};">${getScoreLabel(b.total_score)}</span>
+          <div class="metadata-chips" style="justify-content:center; margin-top:0.75rem;">
+            <span class="badge badge-neutral">${b.total_experience_months} months exp</span>
+            <span class="badge badge-neutral">${b.parsed_resume.skills.length} skills</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Breakdown Bars side-by-side -->
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-title">Score Breakdown Comparison</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
+          ${renderBars(a, 'A', 'var(--accent-primary)')}
+          ${renderBars(b, 'B', 'var(--accent-secondary)')}
+        </div>
+      </div>
+
+      <!-- Skills Diff -->
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-title">Skill Comparison</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1.5rem;">
+          <div>
+            <div class="skills-group-title" style="color:var(--accent-primary);">Only in A (${onlyInA.length})</div>
+            <div class="skills-tags">${onlyInA.length > 0 ? onlyInA.map(s=>`<span class="badge" style="background:rgba(59,130,246,0.12);color:var(--accent-primary);border:1px solid rgba(59,130,246,0.3);">${s}</span>`).join('') : '<span class="text-xs text-secondary">—</span>'}</div>
+          </div>
+          <div>
+            <div class="skills-group-title">Shared (${inBoth.length})</div>
+            <div class="skills-tags">${inBoth.length > 0 ? inBoth.map(s=>`<span class="badge badge-neutral">${s}</span>`).join('') : '<span class="text-xs text-secondary">—</span>'}</div>
+          </div>
+          <div>
+            <div class="skills-group-title" style="color:var(--accent-secondary);">Only in B (${onlyInB.length})</div>
+            <div class="skills-tags">${onlyInB.length > 0 ? onlyInB.map(s=>`<span class="badge" style="background:rgba(139,92,246,0.12);color:var(--accent-secondary);border:1px solid rgba(139,92,246,0.3);">${s}</span>`).join('') : '<span class="text-xs text-secondary">—</span>'}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Matched / Missing side-by-side -->
+      <div class="compare-grid" style="margin-bottom:1.5rem;">
+        ${renderSkillMatch(a, 'A')}
+        ${renderSkillMatch(b, 'B')}
+      </div>
+
+      <!-- Experience side-by-side -->
+      ${(a.parsed_resume.experience.length > 0 || b.parsed_resume.experience.length > 0) ? `
+      <div class="compare-grid" style="margin-bottom:1.5rem;">
+        ${renderExperience(a, 'A')}
+        ${renderExperience(b, 'B')}
+      </div>` : ''}
+
+      <!-- AI Justification side-by-side -->
+      ${(a.context_justification || b.context_justification) ? `
+      <div class="compare-grid" style="margin-bottom:1.5rem;">
+        <div class="card"><div class="card-title" style="font-size:0.85rem;">AI Justification — A</div><div class="justification-text">${a.context_justification || '—'}</div></div>
+        <div class="card"><div class="card-title" style="font-size:0.85rem;">AI Justification — B</div><div class="justification-text">${b.context_justification || '—'}</div></div>
+      </div>` : ''}
+
+      <!-- Detail links -->
+      <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top:0.5rem;">
+        <a href="/pages/detail.html?id=${a.id}" class="btn btn-secondary">View Full Detail — A</a>
+        <a href="/pages/detail.html?id=${b.id}" class="btn btn-secondary">View Full Detail — B</a>
+      </div>
+    `;
+
+    // Animate bars
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.breakdown-bar-fill').forEach(bar => {
+        bar.style.width = `${Math.min(parseFloat(bar.getAttribute('data-width')||0), 100)}%`;
+      });
+    });
+  }
+
+  function renderBars(d, label, color) {
+    return `
+      <div>
+        <div style="font-size:0.72rem; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:0.75rem;">Candidate ${label}</div>
+        <div class="breakdown-bar">
+          <div class="breakdown-bar-header"><span class="breakdown-bar-label">Skill Match</span><span class="breakdown-bar-value">${d.semantic_skill_match.toFixed(1)}/${d.skill_weight}</span></div>
+          <div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="background:${color};" data-width="${(d.semantic_skill_match/d.skill_weight*100).toFixed(1)}"></div></div>
+        </div>
+        <div class="breakdown-bar">
+          <div class="breakdown-bar-header"><span class="breakdown-bar-label">Experience</span><span class="breakdown-bar-value">${d.experience_longevity.toFixed(1)}/${d.experience_weight}</span></div>
+          <div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="background:${color};" data-width="${(d.experience_longevity/d.experience_weight*100).toFixed(1)}"></div></div>
+        </div>
+        <div class="breakdown-bar">
+          <div class="breakdown-bar-header"><span class="breakdown-bar-label">Contextual AI</span><span class="breakdown-bar-value">${d.context_alignment.toFixed(1)}/${d.context_weight}</span></div>
+          <div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="background:${color};" data-width="${(d.context_alignment/d.context_weight*100).toFixed(1)}"></div></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderSkillMatch(d, label) {
+    const borderColor = label === 'A' ? 'var(--accent-primary)' : 'var(--accent-secondary)';
+    const labelColor  = label === 'A' ? 'var(--accent-primary)' : 'var(--accent-secondary)';
+    return `
+      <div class="card" style="border-top: 3px solid ${borderColor};">
+        <div class="card-title" style="color:${labelColor}; font-size:0.85rem;">Candidate ${label} — Skill Match</div>
+        ${d.matched_skills.length > 0 ? `<div class="skills-group"><div class="skills-group-title">Matched</div><div class="skills-tags">${d.matched_skills.map(s=>`<span class="badge badge-success">✓ ${s}</span>`).join('')}</div></div>` : ''}
+        ${d.missing_skills.length > 0 ? `<div class="skills-group"><div class="skills-group-title">Missing</div><div class="skills-tags">${d.missing_skills.map(s=>`<span class="badge badge-error">✗ ${s}</span>`).join('')}</div></div>` : ''}
+      </div>`;
+  }
+
+  function renderExperience(d, label) {
+    const borderColor = label === 'A' ? 'var(--accent-primary)' : 'var(--accent-secondary)';
+    const labelColor  = label === 'A' ? 'var(--accent-primary)' : 'var(--accent-secondary)';
+    return `
+      <div class="card" style="border-top: 3px solid ${borderColor};">
+        <div class="card-title" style="color:${labelColor}; font-size:0.85rem;">Candidate ${label} — Experience (${d.total_experience_months} months)</div>
+        <div class="timeline">
+          ${d.parsed_resume.experience.slice(0,4).map(exp=>`
+            <div class="timeline-item">
+              <div class="timeline-dot" style="background:${borderColor};"></div>
+              <div class="timeline-content">
+                <div class="timeline-title">${exp.role} at ${exp.company}</div>
+                <div class="timeline-subtitle">${exp.duration_months} months</div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  function showToast(msg, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.innerHTML = `<span>${type === 'success' ? '✓' : '✗'}</span><span class="text-sm">${msg}</span><button class="toast-close" onclick="this.parentElement.remove()">×</button>`;
+    container.appendChild(t);
+    setTimeout(() => { t.style.opacity='0'; t.style.transform='translateX(100%)'; setTimeout(()=>t.remove(),200); }, 5000);
+  }
+});
+</script>
+</body>
+</html>

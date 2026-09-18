@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics - ATS Resume Analyzer v2</title>
+  <meta name="description" content="Analytics dashboard for ATS Resume Analyzer — score distributions, top missing skills, and trends.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%233B82F6'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/></svg>">
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/globals.css">
+  <link rel="stylesheet" href="/css/analyze.css">
+  <style>
+    /* ── Stat Cards ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1rem;
+      display: flex; flex-direction: column; gap: 0.4rem;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .stat-card:hover { border-color: var(--accent-primary); transform: translateY(-2px); }
+    .stat-label { font-size: 0.7rem; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.08em; }
+    .stat-value { font-size: 1.8rem; font-weight: 800; color: var(--text-primary); line-height: 1; }
+    .stat-sub   { font-size: 0.75rem; color: var(--text-secondary); }
+
+    /* ── Chart area ── */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 860px) { .charts-grid { grid-template-columns: 1fr; } }
+
+    /* ── Bar chart (CSS) ── */
+    .bar-chart { display: flex; flex-direction: column; gap: 0.6rem; }
+    .bar-row { display: flex; align-items: center; gap: 0.75rem; }
+    .bar-row-label { font-size: 0.8rem; color: var(--text-secondary); min-width: 80px; text-align: right; white-space: nowrap; }
+    .bar-row-track {
+      flex: 1; height: 22px; background: var(--bg-tertiary);
+      border-radius: var(--radius-full); overflow: hidden;
+    }
+    .bar-row-fill {
+      height: 100%; border-radius: var(--radius-full);
+      width: 0; transition: width 0.8s cubic-bezier(0.34,1.56,0.64,1);
+      display: flex; align-items: center; justify-content: flex-end;
+      padding-right: 0.5rem;
+    }
+    .bar-row-count { font-size: 0.7rem; font-weight: 700; color: #fff; }
+
+    /* ── Donut chart (CSS) ── */
+    .donut-wrap { position: relative; width: 140px; height: 140px; margin: 0 auto 1rem; }
+    .donut-wrap svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .donut-center {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      font-size: 1.5rem; font-weight: 800; color: var(--text-primary); line-height: 1;
+    }
+    .donut-center small { font-size: 0.65rem; color: var(--text-tertiary); font-weight: 500; }
+
+    /* ── Score distribution colors ── */
+    .dist-legend { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 0.75rem; }
+    .dist-legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: var(--text-secondary); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Trend sparkline ── */
+    .sparkline-wrap { overflow-x: auto; padding: 0.5rem 0; }
+    .sparkline-svg { display: block; min-width: 300px; }
+    .spark-x-labels { display: flex; justify-content: space-between; margin-top: 0.25rem; }
+    .spark-x-label { font-size: 0.65rem; color: var(--text-tertiary); }
+
+    /* ── Feedback donut legend ── */
+    .fb-legend { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; }
+    .fb-legend-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; }
+    .fb-legend-label { display: flex; align-items: center; gap: 0.4rem; color: var(--text-secondary); }
+    .fb-legend-count { font-weight: 600; color: var(--text-primary); }
+
+    /* ── Skeleton loader ── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-secondary) 50%, var(--bg-tertiary) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: var(--radius-md);
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    .empty-analytics { text-align: center; padding: 4rem 2rem; color: var(--text-tertiary); }
+    .empty-analytics svg { opacity: 0.3; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span>ATS Analyzer</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/" class="nav-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="nav-label">Analyze</span>
+      </a>
+      <a href="/pages/history.html" class="nav-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+        <span class="nav-label">History</span>
+      </a>
+      <a href="/pages/analytics.html" class="nav-item active">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span class="nav-label">Analytics</span>
+      </a>
+      <a href="/pages/compare.html" class="nav-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="18"/></svg>
+        <span class="nav-label">Compare</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-ghost" id="theme-toggle" title="Toggle theme">
+        <svg id="theme-icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="theme-icon-sun" class="hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+      </button>
+      <span class="text-xs text-secondary">
+        <span class="status-dot" id="api-status"></span> v2.0.0
+      </span>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+      <div>
+        <h1 class="page-title">Analytics Dashboard</h1>
+        <p class="page-subtitle">Aggregate insights across all analyzed resumes.</p>
+      </div>
+      <button class="btn btn-secondary" id="refresh-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Refresh
+      </button>
+    </div>
+
+    <!-- Skeleton while loading -->
+    <div id="skeleton-area">
+      <div class="stat-grid">
+        <div class="skeleton" style="height:88px;"></div>
+        <div class="skeleton" style="height:88px;"></div>
+        <div class="skeleton" style="height:88px;"></div>
+        <div class="skeleton" style="height:88px;"></div>
+      </div>
+      <div class="charts-grid">
+        <div class="skeleton" style="height:260px;"></div>
+        <div class="skeleton" style="height:260px;"></div>
+      </div>
+      <div class="skeleton" style="height:180px;margin-bottom:1.5rem;"></div>
+      <div class="skeleton" style="height:180px;"></div>
+    </div>
+
+    <!-- Real content (hidden until loaded) -->
+    <div id="analytics-content" style="display:none;">
+
+      <!-- KPI Stats -->
+      <div class="stat-grid" id="stat-grid"></div>
+
+      <!-- Row 1: Score Distribution + Feedback -->
+      <div class="charts-grid">
+        <div class="card">
+          <div class="card-title">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Score Distribution
+          </div>
+          <div class="bar-chart" id="score-dist-chart"></div>
+        </div>
+        <div class="card" style="display:flex;flex-direction:column;align-items:center;">
+          <div class="card-title" style="width:100%;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Recruiter Feedback
+          </div>
+          <div class="donut-wrap" id="feedback-donut-wrap">
+            <svg viewBox="0 0 100 100" id="feedback-donut-svg"></svg>
+            <div class="donut-center" id="feedback-donut-center">—<br><small>total</small></div>
+          </div>
+          <div class="dist-legend" id="feedback-legend"></div>
+          <div class="fb-legend" id="feedback-detail" style="width:100%;"></div>
+        </div>
+      </div>
+
+      <!-- Top Missing Skills -->
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Top Missing Skills
+          <span class="badge badge-neutral" style="margin-left:auto;">Most commonly absent across candidates</span>
+        </div>
+        <div class="bar-chart" id="missing-skills-chart"></div>
+        <div id="missing-skills-empty" class="text-sm text-secondary" style="display:none; margin-top:1rem;">No missing skills data yet — run some analyses first.</div>
+      </div>
+
+      <!-- Score Trend -->
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Score Trend
+          <span class="badge badge-neutral" style="margin-left:auto;">Daily average (last 30 days)</span>
+        </div>
+        <div id="score-trend-area"></div>
+        <div id="score-trend-empty" class="text-sm text-secondary" style="display:none;">Not enough data yet.</div>
+      </div>
+
+      <!-- Extraction Tier -->
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+          Extraction Tier Usage
+        </div>
+        <div class="bar-chart" id="tier-chart"></div>
+      </div>
+
+    </div>
+
+    <!-- Error state -->
+    <div id="analytics-error" style="display:none;" class="card">
+      <div class="empty-analytics">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <p id="analytics-error-msg">Failed to load analytics.</p>
+        <a href="/" class="btn btn-primary" style="margin-top:1.5rem;">Analyze a Resume</a>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="/js/api.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // ── Theme ──
+  const savedTheme = localStorage.getItem('ats-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  const moon = document.getElementById('theme-icon-moon');
+  const sun  = document.getElementById('theme-icon-sun');
+  function applyTheme(t) { moon.classList.toggle('hidden', t !== 'dark'); sun.classList.toggle('hidden', t === 'dark'); }
+  applyTheme(savedTheme);
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('ats-theme', next);
+    applyTheme(next);
+  });
+
+  // ── Health ──
+  API.healthCheck()
+    .then(() => document.getElementById('api-status').className = 'status-dot online')
+    .catch(() => document.getElementById('api-status').className = 'status-dot offline');
+
+  document.getElementById('refresh-btn').addEventListener('click', loadAnalytics);
+
+  loadAnalytics();
+
+  async function loadAnalytics() {
+    document.getElementById('skeleton-area').style.display = '';
+    document.getElementById('analytics-content').style.display = 'none';
+    document.getElementById('analytics-error').style.display = 'none';
+
+    try {
+      const data = await API.getAnalyticsSummary();
+      renderAnalytics(data);
+    } catch (err) {
+      document.getElementById('skeleton-area').style.display = 'none';
+      document.getElementById('analytics-error').style.display = '';
+      document.getElementById('analytics-error-msg').textContent = 'Error: ' + err.message;
+    }
+  }
+
+  // ── Color helpers ──
+  const DIST_COLORS  = { '0-39': '#ef4444', '40-69': '#f59e0b', '70-89': '#3b82f6', '90-100': '#10b981' };
+  const FB_COLORS    = { accurate: '#10b981', too_high: '#f59e0b', too_low: '#3b82f6', inaccurate: '#ef4444' };
+  const TIER_COLORS  = { tier_1: '#3b82f6', tier_2: '#8b5cf6', tier_3: '#f59e0b' };
+  const TIER_LABELS  = { tier_1: 'Tier 1 (PyMuPDF)', tier_2: 'Tier 2 (pdfplumber)', tier_3: 'Tier 3 (OCR)' };
+  const FB_LABELS    = { accurate: 'Accurate', too_high: 'Too High', too_low: 'Too Low', inaccurate: 'Inaccurate' };
+
+  function renderAnalytics(d) {
+    document.getElementById('skeleton-area').style.display = 'none';
+    document.getElementById('analytics-content').style.display = '';
+
+    // ── KPI cards ──
+    const kpis = [
+      { label: 'Total Analyses', value: d.total_analyses, sub: 'all time' },
+      { label: 'Avg Score', value: d.avg_score.toFixed(1), sub: 'out of 100' },
+      { label: 'LLM Success', value: d.llm_success_rate + '%', sub: 'parse success rate' },
+      { label: 'Feedback Given', value: Object.values(d.feedback_breakdown).reduce((a,b) => a+b, 0), sub: 'recruiter responses' },
+    ];
+    document.getElementById('stat-grid').innerHTML = kpis.map(k => `
+      <div class="stat-card">
+        <div class="stat-label">${k.label}</div>
+        <div class="stat-value">${k.value}</div>
+        <div class="stat-sub">${k.sub}</div>
+      </div>`).join('');
+
+    // ── Score Distribution horizontal bars ──
+    const distTotal = Object.values(d.score_distribution).reduce((a,b) => a+b, 0) || 1;
+    const distLabels = { '0-39': 'Weak (0–39)', '40-69': 'Moderate (40–69)', '70-89': 'Strong (70–89)', '90-100': 'Excellent (90–100)' };
+    document.getElementById('score-dist-chart').innerHTML = Object.entries(d.score_distribution).map(([key, cnt]) => {
+      const pct = ((cnt / distTotal) * 100).toFixed(1);
+      return `<div class="bar-row">
+        <div class="bar-row-label">${distLabels[key] || key}</div>
+        <div class="bar-row-track">
+          <div class="bar-row-fill" data-width="${pct}" style="background:${DIST_COLORS[key] || '#3b82f6'}">
+            ${cnt > 0 ? `<span class="bar-row-count">${cnt}</span>` : ''}
+          </div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--text-tertiary);min-width:36px;">${pct}%</div>
+      </div>`;
+    }).join('');
+
+    // ── Feedback Donut ──
+    const fbTotal = Object.values(d.feedback_breakdown).reduce((a,b) => a+b, 0);
+    if (fbTotal > 0) {
+      const cx = 50, cy = 50, r = 40;
+      const circum = 2 * Math.PI * r;
+      let offset = 0;
+      let svgPaths = '';
+      for (const [key, cnt] of Object.entries(d.feedback_breakdown)) {
+        if (cnt === 0) continue;
+        const frac = cnt / fbTotal;
+        const dash = frac * circum;
+        const color = FB_COLORS[key] || '#888';
+        svgPaths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="18"
+          stroke-dasharray="${dash} ${circum - dash}" stroke-dashoffset="${-offset}" style="transition:stroke-dashoffset 0.6s;"/>`;
+        offset += dash;
+      }
+      document.getElementById('feedback-donut-svg').innerHTML = svgPaths;
+      document.getElementById('feedback-donut-center').innerHTML = `${fbTotal}<br><small>total</small>`;
+    } else {
+      document.getElementById('feedback-donut-center').innerHTML = `0<br><small>feedback</small>`;
+    }
+
+    document.getElementById('feedback-legend').innerHTML = Object.entries(d.feedback_breakdown).map(([k, v]) =>
+      `<div class="dist-legend-item"><div class="legend-dot" style="background:${FB_COLORS[k]};"></div>${FB_LABELS[k]}</div>`
+    ).join('');
+    document.getElementById('feedback-detail').innerHTML = Object.entries(d.feedback_breakdown).map(([k, v]) =>
+      `<div class="fb-legend-row"><span class="fb-legend-label"><div class="legend-dot" style="background:${FB_COLORS[k]};"></div>${FB_LABELS[k]}</span><span class="fb-legend-count">${v}</span></div>`
+    ).join('');
+
+    // ── Top Missing Skills ──
+    if (d.top_missing_skills && d.top_missing_skills.length > 0) {
+      const maxCount = d.top_missing_skills[0].count || 1;
+      document.getElementById('missing-skills-chart').innerHTML = d.top_missing_skills.map(item => {
+        const pct = ((item.count / maxCount) * 100).toFixed(1);
+        return `<div class="bar-row">
+          <div class="bar-row-label">${item.skill}</div>
+          <div class="bar-row-track">
+            <div class="bar-row-fill" data-width="${pct}" style="background: linear-gradient(90deg,#ef444488,#ef4444)">
+              <span class="bar-row-count">${item.count}</span>
+            </div>
+          </div>
+          <div style="font-size:0.72rem;color:var(--text-tertiary);min-width:40px;">${item.count}x</div>
+        </div>`;
+      }).join('');
+      document.getElementById('missing-skills-empty').style.display = 'none';
+    } else {
+      document.getElementById('missing-skills-chart').innerHTML = '';
+      document.getElementById('missing-skills-empty').style.display = '';
+    }
+
+    // ── Score Trend Sparkline (SVG) ──
+    const trend = d.score_trend || [];
+    if (trend.length >= 2) {
+      const W = 600, H = 120, PAD = { t: 16, b: 24, l: 36, r: 8 };
+      const scores = trend.map(p => p.avg_score);
+      const minS = Math.min(...scores, 0), maxS = Math.max(...scores, 100);
+      const xScale = i => PAD.l + (i / (trend.length - 1)) * (W - PAD.l - PAD.r);
+      const yScale = v => H - PAD.b - ((v - minS) / (maxS - minS + 1)) * (H - PAD.t - PAD.b);
+      const points = trend.map((p, i) => `${xScale(i)},${yScale(p.avg_score)}`).join(' ');
+      const areaPoints = `${xScale(0)},${H - PAD.b} ` + points + ` ${xScale(trend.length - 1)},${H - PAD.b}`;
+
+      // Y axis ticks
+      const yTicks = [0, 25, 50, 75, 100].map(v => `
+        <line x1="${PAD.l - 4}" y1="${yScale(v)}" x2="${W - PAD.r}" y2="${yScale(v)}" stroke="var(--border-primary)" stroke-width="0.5"/>
+        <text x="${PAD.l - 8}" y="${yScale(v) + 4}" text-anchor="end" font-size="9" fill="var(--text-tertiary)">${v}</text>`).join('');
+
+      // X axis labels (show first and last and middle)
+      const showIdxs = new Set([0, Math.floor(trend.length / 2), trend.length - 1]);
+      const xLabels = trend.map((p, i) => showIdxs.has(i)
+        ? `<text x="${xScale(i)}" y="${H - 4}" text-anchor="middle" font-size="8" fill="var(--text-tertiary)">${p.date.slice(5)}</text>`
+        : '').join('');
+
+      document.getElementById('score-trend-area').innerHTML = `
+        <svg class="sparkline-svg" viewBox="0 0 ${W} ${H}" style="width:100%;height:${H}px;">
+          <defs>
+            <linearGradient id="area-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          ${yTicks}
+          <polygon points="${areaPoints}" fill="url(#area-grad)"/>
+          <polyline points="${points}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+          ${trend.map((p, i) => `<circle cx="${xScale(i)}" cy="${yScale(p.avg_score)}" r="3" fill="#3b82f6"/>
+            <title>${p.date}: ${p.avg_score}</title>`).join('')}
+          ${xLabels}
+        </svg>`;
+      document.getElementById('score-trend-empty').style.display = 'none';
+    } else {
+      document.getElementById('score-trend-area').innerHTML = '';
+      document.getElementById('score-trend-empty').style.display = '';
+    }
+
+    // ── Extraction Tier ──
+    const tierTotal = Object.values(d.tier_distribution).reduce((a,b) => a+b, 0) || 1;
+    document.getElementById('tier-chart').innerHTML = Object.entries(d.tier_distribution).map(([key, cnt]) => {
+      const pct = ((cnt / tierTotal) * 100).toFixed(1);
+      return `<div class="bar-row">
+        <div class="bar-row-label">${TIER_LABELS[key] || key}</div>
+        <div class="bar-row-track">
+          <div class="bar-row-fill" data-width="${pct}" style="background:${TIER_COLORS[key] || '#888'}">
+            ${cnt > 0 ? `<span class="bar-row-count">${cnt}</span>` : ''}
+          </div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--text-tertiary);min-width:36px;">${pct}%</div>
+      </div>`;
+    }).join('');
+
+    // Animate bars after render
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.bar-row-fill[data-width]').forEach(el => {
+        el.style.width = Math.min(parseFloat(el.dataset.width), 100) + '%';
+      });
+    });
+  }
+});
+</script>
+</body>
+</html>

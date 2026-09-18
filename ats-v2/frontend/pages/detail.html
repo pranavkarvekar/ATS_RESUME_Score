@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analysis Detail - ATS Resume Analyzer v2</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%233B82F6'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/></svg>">
+  <link rel="stylesheet" href="/css/variables.css">
+  <link rel="stylesheet" href="/css/globals.css">
+  <link rel="stylesheet" href="/css/analyze.css">
+  <style>
+    .back-link {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.5rem;
+      text-decoration: none; transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--accent-primary); }
+
+    .detail-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem;
+    }
+    .detail-title { font-size: 1.5rem; font-weight: 700; }
+    .detail-meta { font-size: 0.8rem; color: var(--text-tertiary); margin-top: 0.25rem; }
+
+    .action-row {
+      display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 2rem;
+    }
+
+    .section-title {
+      font-size: 0.75rem; font-weight: 600; color: var(--text-tertiary);
+      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem;
+    }
+
+    .info-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 0.75rem; margin-bottom: 1.5rem;
+    }
+    .info-box {
+      background: var(--bg-tertiary); border-radius: var(--radius-md);
+      padding: 0.875rem 1rem;
+    }
+    .info-box .label { font-size: 0.72rem; color: var(--text-tertiary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+    .info-box .value { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin-top: 0.2rem; }
+
+    .spinner {
+      width: 48px; height: 48px; border: 3px solid var(--border-secondary);
+      border-top-color: var(--accent-primary); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 4rem auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-center { text-align: center; padding: 4rem 0; }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>ATS Analyzer</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/" class="nav-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="nav-label">Analyze</span>
+      </a>
+      <a href="/pages/history.html" class="nav-item active">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+        <span class="nav-label">History</span>
+      </a>
+      <a href="/pages/analytics.html" class="nav-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span class="nav-label">Analytics</span>
+      </a>
+      <a href="/pages/compare.html" class="nav-item">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="18"/></svg>
+        <span class="nav-label">Compare</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-ghost" id="theme-toggle" title="Toggle theme">
+        <svg id="theme-icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="theme-icon-sun" class="hidden" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
+      </button>
+      <span class="text-xs text-secondary">
+        <span class="status-dot online" id="api-status"></span>
+        v2.0.0
+      </span>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <a href="/pages/history.html" class="back-link">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      Back to History
+    </a>
+
+    <div id="page-content">
+      <div class="loading-center">
+        <div class="spinner"></div>
+        <p class="text-sm text-secondary" style="margin-top:1rem;">Loading analysis...</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="/js/api.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  // ── Theme ──
+  const savedTheme = localStorage.getItem('ats-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  const moon = document.getElementById('theme-icon-moon');
+  const sun = document.getElementById('theme-icon-sun');
+  function applyTheme(t) { moon.classList.toggle('hidden', t !== 'dark'); sun.classList.toggle('hidden', t === 'dark'); }
+  applyTheme(savedTheme);
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('ats-theme', next);
+    applyTheme(next);
+  });
+
+  // ── Health ──
+  API.healthCheck()
+    .then(() => document.getElementById('api-status').className = 'status-dot online')
+    .catch(() => document.getElementById('api-status').className = 'status-dot offline');
+
+  // ── Load analysis ID from URL ──
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (!id) { renderError('No analysis ID in URL. Go back to History.'); return; }
+
+  try {
+    const d = await API.getAnalysis(id);
+    renderDetail(d);
+  } catch (err) {
+    renderError(err.message);
+  }
+
+  function renderError(msg) {
+    document.getElementById('page-content').innerHTML = `
+      <div class="empty-state card">
+        <h3 style="color:var(--color-error)">Error</h3>
+        <p class="text-sm text-secondary mt-4">${msg}</p>
+        <a href="/pages/history.html" class="btn btn-primary mt-6">Back to History</a>
+      </div>`;
+  }
+
+  function getScoreColor(s) {
+    if (s >= 90) return 'var(--score-excellent)';
+    if (s >= 70) return 'var(--score-high)';
+    if (s >= 40) return 'var(--score-medium)';
+    return 'var(--score-low)';
+  }
+  function getScoreLabel(s) {
+    if (s >= 90) return 'EXCELLENT FIT';
+    if (s >= 70) return 'STRONG FIT';
+    if (s >= 40) return 'MODERATE FIT';
+    return 'WEAK FIT';
+  }
+
+  function renderDetail(d) {
+    const pr = d.parsed_resume;
+    const scoreColor = getScoreColor(d.total_score);
+    const circumference = 2 * Math.PI * 72;
+    const offset = circumference - (d.total_score / 100) * circumference;
+    const date = new Date(d.created_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+    const tierLabel = ['—', 'PyMuPDF (T1)', 'pdfplumber (T2)', 'OCR (T3)', 'DOCX (T4)'][d.extraction_tier_used] || '—';
+
+    document.title = `${d.candidate_name} — ATS Detail`;
+
+    document.getElementById('page-content').innerHTML = `
+      <!-- Header -->
+      <div class="detail-header">
+        <div>
+          <h1 class="detail-title">${d.candidate_name}</h1>
+          <div class="detail-meta">Analyzed on ${date} · Config ${d.scoring_config_version}</div>
+        </div>
+        <div class="action-row" style="margin-top:0;">
+          <a href="/pages/compare.html?a=${d.id}" class="btn btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="18"/></svg>
+            Compare
+          </a>
+          <button class="btn btn-secondary" id="export-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export JSON
+          </button>
+        </div>
+      </div>
+
+      ${d.manual_review_recommended ? `<div class="review-banner" style="margin-bottom:1.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Manual review recommended — low confidence extraction or parse.</div>` : ''}
+
+      <!-- KPI Row -->
+      <div class="info-grid">
+        <div class="info-box">
+          <div class="label">Total Score</div>
+          <div class="value" style="color:${scoreColor}">${d.total_score.toFixed(1)}</div>
+        </div>
+        <div class="info-box">
+          <div class="label">Skill Match</div>
+          <div class="value">${d.semantic_skill_match.toFixed(1)} / ${d.skill_weight}</div>
+        </div>
+        <div class="info-box">
+          <div class="label">Experience</div>
+          <div class="value">${d.experience_longevity.toFixed(1)} / ${d.experience_weight}</div>
+        </div>
+        <div class="info-box">
+          <div class="label">Contextual AI</div>
+          <div class="value">${d.context_alignment.toFixed(1)} / ${d.context_weight}</div>
+        </div>
+        <div class="info-box">
+          <div class="label">Exp. Months</div>
+          <div class="value">${d.total_experience_months}</div>
+        </div>
+        <div class="info-box">
+          <div class="label">Extraction</div>
+          <div class="value" style="font-size:0.9rem;">${tierLabel}</div>
+        </div>
+        <div class="info-box">
+          <div class="label">Parse Time</div>
+          <div class="value">${d.processing_time_ms}ms</div>
+        </div>
+        <div class="info-box">
+          <div class="label">Verdict</div>
+          <div class="value" style="font-size:0.8rem; color:${scoreColor};">${getScoreLabel(d.total_score)}</div>
+        </div>
+      </div>
+
+      <!-- Score Ring + Breakdown -->
+      <div class="results-grid">
+        <div class="card score-ring-container">
+          <div class="score-ring-wrapper">
+            <svg viewBox="0 0 160 160">
+              <circle class="score-ring-track" cx="80" cy="80" r="72"/>
+              <circle class="score-ring-fill" cx="80" cy="80" r="72"
+                stroke="${scoreColor}" stroke-dasharray="${circumference}"
+                stroke-dashoffset="${circumference}" id="score-ring-circle"/>
+            </svg>
+            <div class="score-ring-text">
+              <div class="score-number" style="color:${scoreColor}" id="score-counter">0</div>
+              <div class="score-denominator">/ 100</div>
+            </div>
+          </div>
+          <div style="margin-top:0.75rem; text-align:center;">
+            <span style="background:${scoreColor}18; color:${scoreColor}; border:1px solid ${scoreColor}40; padding:0.25rem 0.9rem; border-radius:var(--radius-full); font-size:0.72rem; font-weight:700; letter-spacing:0.06em;">${getScoreLabel(d.total_score)}</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Score Breakdown</div>
+          <div class="breakdown-bar">
+            <div class="breakdown-bar-header"><span class="breakdown-bar-label">Semantic Skill Match</span><span class="breakdown-bar-value">${d.semantic_skill_match.toFixed(1)} / ${d.skill_weight}</span></div>
+            <div class="breakdown-bar-track"><div class="breakdown-bar-fill bar-skill" data-width="${(d.semantic_skill_match/d.skill_weight*100).toFixed(1)}"></div></div>
+          </div>
+          <div class="breakdown-bar">
+            <div class="breakdown-bar-header"><span class="breakdown-bar-label">Experience Longevity</span><span class="breakdown-bar-value">${d.experience_longevity.toFixed(1)} / ${d.experience_weight}</span></div>
+            <div class="breakdown-bar-track"><div class="breakdown-bar-fill bar-exp" data-width="${(d.experience_longevity/d.experience_weight*100).toFixed(1)}"></div></div>
+          </div>
+          <div class="breakdown-bar">
+            <div class="breakdown-bar-header"><span class="breakdown-bar-label">Contextual AI Fit</span><span class="breakdown-bar-value">${d.context_alignment.toFixed(1)} / ${d.context_weight}</span></div>
+            <div class="breakdown-bar-track"><div class="breakdown-bar-fill bar-context" data-width="${(d.context_alignment/d.context_weight*100).toFixed(1)}"></div></div>
+          </div>
+
+          <!-- Skills -->
+          <div class="skills-section">
+            ${d.matched_skills.length > 0 ? `<div class="skills-group"><div class="skills-group-title">Matched Skills</div><div class="skills-tags">${d.matched_skills.map(s=>`<span class="badge badge-success">✓ ${s}</span>`).join('')}</div></div>` : ''}
+            ${d.missing_skills.length > 0 ? `<div class="skills-group"><div class="skills-group-title">Missing Skills</div><div class="skills-tags">${d.missing_skills.map(s=>`<span class="badge badge-error">✗ ${s}</span>`).join('')}</div></div>` : ''}
+          </div>
+        </div>
+      </div>
+
+      <!-- Verified / Unverified Skills -->
+      ${(d.verified_skills.length > 0 || d.unverified_skills.length > 0) ? `
+      <div class="grid-2" style="margin-top:1.5rem;">
+        <div class="card">
+          <div class="card-title" style="color:var(--color-success);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Verified (${d.verified_skills.length})
+          </div>
+          <div class="skills-tags">${d.verified_skills.map(s=>`<span class="badge badge-success">✓ ${s}</span>`).join('') || '<span class="text-xs text-secondary">None</span>'}</div>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:var(--color-warning);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Unverified (${d.unverified_skills.length})
+          </div>
+          <div class="skills-tags">${d.unverified_skills.map(s=>`<span class="badge badge-warning">⚠ ${s}</span>`).join('') || '<span class="text-xs text-secondary">All verified ✓</span>'}</div>
+        </div>
+      </div>` : ''}
+
+      <!-- Experience Timeline -->
+      ${pr.experience.length > 0 ? `
+      <div class="card" style="margin-top:1.5rem;">
+        <div class="card-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          Experience (${d.total_experience_months} months total)
+        </div>
+        <div class="timeline">
+          ${pr.experience.map(exp=>`
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-content">
+                <div class="timeline-title">${exp.role} at ${exp.company}</div>
+                <div class="timeline-subtitle">${exp.duration_months} months</div>
+                ${exp.responsibilities.length > 0 ? `<ul class="timeline-bullets">${exp.responsibilities.slice(0,5).map(r=>`<li>${r}</li>`).join('')}</ul>` : ''}
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Education & Certifications -->
+      ${(pr.education.length > 0 || pr.certifications.length > 0) ? `
+      <div class="grid-2" style="margin-top:1.5rem;">
+        ${pr.education.length > 0 ? `
+        <div class="card">
+          <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.1 2.7 3 6 3s6-1.9 6-3v-5"/></svg> Education</div>
+          <div class="education-list">${pr.education.map(e=>`<div class="edu-item"><div class="edu-dot"></div><span class="text-sm">${e}</span></div>`).join('')}</div>
+        </div>` : ''}
+        ${pr.certifications.length > 0 ? `
+        <div class="card">
+          <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg> Certifications</div>
+          <div class="education-list">${pr.certifications.map(c=>`<div class="edu-item"><div class="edu-dot" style="background:var(--accent-secondary);"></div><span class="text-sm">${c}</span></div>`).join('')}</div>
+        </div>` : ''}
+      </div>` : ''}
+
+      <!-- Projects -->
+      ${pr.projects.length > 0 ? `
+      <div class="card" style="margin-top:1.5rem;">
+        <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Projects</div>
+        <div class="grid-2">${pr.projects.map(p=>`
+          <div class="project-card">
+            <div class="project-name">${p.name}</div>
+            ${p.tech_stack.length > 0 ? `<div class="skills-tags" style="margin-top:0.5rem;">${p.tech_stack.map(t=>`<span class="badge badge-info">${t}</span>`).join('')}</div>` : ''}
+            ${p.description ? `<p class="text-sm text-secondary" style="margin-top:0.5rem; line-height:1.6;">${p.description}</p>` : ''}
+          </div>`).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- All Skills -->
+      ${pr.skills.length > 0 ? `
+      <div class="card" style="margin-top:1.5rem;">
+        <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> All Parsed Skills (${pr.skills.length})</div>
+        <div class="skills-tags">${pr.skills.map(s=>`<span class="badge badge-neutral">${s}</span>`).join('')}</div>
+      </div>` : ''}
+
+      <!-- AI Justification -->
+      ${d.context_justification ? `
+      <div class="card" style="margin-top:1.5rem;">
+        <div class="card-title"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> AI Contextual Justification</div>
+        <div class="justification-text">${d.context_justification}</div>
+      </div>` : ''}
+
+      <!-- Metadata -->
+      <div class="metadata-chips" style="margin-top:1.5rem;">
+        <span class="badge badge-info">Tier ${d.extraction_tier_used}</span>
+        <span class="badge badge-neutral mono">${(d.processing_time_ms/1000).toFixed(1)}s</span>
+        <span class="badge badge-neutral mono">${d.llm_parse_attempts} LLM attempt${d.llm_parse_attempts !== 1 ? 's' : ''}</span>
+        <span class="badge badge-neutral">Config ${d.scoring_config_version}</span>
+        ${d.calibration_applied ? '<span class="badge badge-info">⚡ Cached</span>' : ''}
+        ${d.used_regex_fallback ? '<span class="badge badge-warning">Regex Fallback</span>' : ''}
+      </div>
+
+      <!-- Feedback -->
+      <div class="feedback-bar" id="feedback-bar" style="margin-top:1.5rem;">
+        <div class="feedback-question">Was this score accurate?</div>
+        <div class="feedback-buttons">
+          <button class="feedback-btn" data-type="accurate">✓ Accurate</button>
+          <button class="feedback-btn" data-type="too_high">↑ Too High</button>
+          <button class="feedback-btn" data-type="too_low">↓ Too Low</button>
+          <button class="feedback-btn" data-type="inaccurate">✗ Inaccurate</button>
+        </div>
+      </div>
+
+      <!-- Bottom Actions -->
+      <div class="action-row">
+        <a href="/pages/history.html" class="btn btn-secondary">← Back to History</a>
+        <button class="btn btn-secondary" id="export-btn2">Export JSON</button>
+        <a href="/" class="btn btn-primary">+ Analyze New</a>
+      </div>
+    `;
+
+    // Animate ring
+    requestAnimationFrame(() => {
+      const ring = document.getElementById('score-ring-circle');
+      if (ring) ring.style.strokeDashoffset = offset;
+      document.querySelectorAll('.breakdown-bar-fill').forEach(bar => {
+        bar.style.width = `${Math.min(parseFloat(bar.getAttribute('data-width')), 100)}%`;
+      });
+      animateCounter('score-counter', d.total_score);
+    });
+
+    // Export
+    function exportJson() {
+      const blob = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${d.candidate_name.replace(/\s+/g,'_')}_analysis.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    document.getElementById('export-btn').addEventListener('click', exportJson);
+    document.getElementById('export-btn2').addEventListener('click', exportJson);
+
+    // Feedback
+    document.querySelectorAll('.feedback-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const type = btn.getAttribute('data-type');
+        try {
+          await API.submitFeedback(d.id, type);
+          document.querySelectorAll('.feedback-btn').forEach(b => { b.disabled = true; b.classList.remove('selected'); });
+          btn.classList.add('selected');
+          document.querySelector('.feedback-question').textContent = 'Thank you for your feedback!';
+          showToast('Feedback submitted', 'success');
+        } catch(err) { showToast('Feedback failed: ' + err.message, 'error'); }
+      });
+    });
+  }
+
+  function animateCounter(id, target) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const dur = 1600, start = performance.now();
+    function update(now) {
+      const p = Math.min((now - start) / dur, 1);
+      el.textContent = ((1 - Math.pow(1-p, 3)) * target).toFixed(1);
+      if (p < 1) requestAnimationFrame(update);
+    }
+    requestAnimationFrame(update);
+  }
+
+  function showToast(msg, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.innerHTML = `<span>${type === 'success' ? '✓' : '✗'}</span><span class="text-sm">${msg}</span><button class="toast-close" onclick="this.parentElement.remove()">×</button>`;
+    container.appendChild(t);
+    setTimeout(() => { t.style.opacity='0'; t.style.transform='translateX(100%)'; setTimeout(()=>t.remove(),200); }, 5000);
+  }
+});
+</script>
+</body>
+</html>

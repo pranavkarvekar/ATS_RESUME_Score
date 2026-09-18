@@ -1,424 +1,153 @@
-# 🎯 ATS Resume Analyzer
+# ATS Resume Analyzer v2
 
-> **Enterprise-grade, low-latency Applicant Tracking System powered by Groq LPU and LLaMA 3.3 70B.**
-> Analyzes a candidate's PDF resume against a job description and produces a hybrid ATS score with detailed breakdown.
+An intelligent resume screening system with hybrid scoring — combining rule-based skill matching, experience analysis, and LLM-powered contextual evaluation.
 
----
+## Features
 
-## ✨ Features
-
-- 📄 **Multi-Tier PDF Extraction** — Handles any PDF: text-based, multi-column, or scanned image
-- 🤖 **LLM-Powered Parsing** — LLaMA 3.3 70B extracts structured data (skills, experience, education) from raw resume text
-- 🧮 **Hybrid Scoring Matrix** — Three independent scoring components totaling 100 points
-- 🔍 **Semantic Skill Matching** — Fuzzy + cluster-aware skill comparison (e.g., FastAPI = Django = Backend Dev)
-- 🛡️ **Student-Protective Design** — Minimum floor scores prevent unfair penalties for fresh graduates
-- ⚡ **Groq LPU Speed** — Sub-second LLM inference via Groq's Language Processing Unit
-- 🌐 **REST API + Interactive UI** — FastAPI backend with a full-featured HTML/JS dashboard
+- 📄 **3-tier PDF extraction** — PyMuPDF → pdfplumber → Tesseract OCR fallback
+- 🧠 **AI-powered parsing** — Groq LLM extracts structured data with 3-attempt retry + regex fallback
+- ⚖️ **Weighted scoring** — Skill Match 35% + Experience 25% + Contextual AI Fit 40%
+- 🔍 **Semantic skill matching** — 4-tier pipeline: exact → alias → cluster → embedding cosine similarity
+- 💾 **Persistent storage** — SQLite with resume hash caching to avoid redundant LLM calls
+- 📊 **Analytics dashboard** — score distributions, top missing skills, score trend over time
+- 🔀 **Compare view** — side-by-side comparison of two candidates
+- 🌙 **Dark/Light theme** — fully responsive UI
 
 ---
 
-## 🏗️ Architecture
+## Project Structure
 
 ```
-PDF Resume + Job Description
-          |
-          v
-+-----------------------------+
-|  Tier 1: PyMuPDF            |  Fast character streaming
-|  Tier 2: pdfplumber         |  Multi-column + table detection
-|  Tier 3: Tesseract OCR      |  Scanned image fallback
-+-----------------------------+
-          |
-          v
-+-----------------------------+
-|  Groq LLM (LLaMA 3.3 70B)  |  Extracts structured JSON from raw text
-+-----------------------------+
-          |
-          v
-+-----------------------------+
-|  Hybrid Scoring Matrix      |
-|  +-- Semantic Skills  /40   |
-|  +-- Experience       /35   |
-|  +-- Context Alignment/25   |
-+-----------------------------+
-          |
-          v
-      Score /100 + Dashboard
+ATS_Resume_score/
+├── ats-v2/
+│   ├── backend/
+│   │   ├── config.py          # Centralized env var management
+│   │   ├── main.py            # FastAPI app factory
+│   │   ├── models/            # Pydantic schemas + SQLAlchemy DB models
+│   │   ├── parsing/           # LLM parser, JSON sanitizer, regex fallback
+│   │   ├── extraction/        # 3-tier PDF/DOCX extractor
+│   │   ├── scoring/           # Skill match, experience, contextual AI scorer, embeddings
+│   │   ├── routers/           # FastAPI route handlers
+│   │   ├── db/                # SQLAlchemy async session + CRUD
+│   │   ├── security/          # API key auth + rate limiter
+│   │   └── tests/             # pytest test suite (61 tests)
+│   └── frontend/
+│       ├── index.html         # Analyze page
+│       ├── pages/
+│       │   ├── history.html   # Analysis history with search/filter
+│       │   ├── detail.html    # Full analysis detail + feedback
+│       │   ├── compare.html   # Side-by-side comparison
+│       │   └── analytics.html # Aggregate dashboard with charts
+│       ├── css/               # Design tokens + component styles
+│       └── js/api.js          # Centralized API client
+├── Dockerfile
+├── docker-compose.yml
+└── .env.production.example
 ```
 
 ---
 
-## 🧮 Scoring System
+## Quick Start (Local)
 
-| Component | Max Points | How It Works |
-|---|---|---|
-| **Semantic Skill Match** | 40 | Fuzzy + cluster matching of your skills vs. required skills |
-| **Experience Longevity** | 35 | Bracket-based: 0 mo=60%, 1-11 mo=75%, 12-35 mo=90%, 36+ mo=100% |
-| **Context Alignment** | 25 | LLM evaluates how well your experience fits the job description |
-| **Calibration Bonus** | +10 | If total < 70 AND skill score >= 30/40 (protects high-skill candidates) |
+### 1. Prerequisites
+- Python 3.12+
+- A [Groq API key](https://console.groq.com) (free tier available)
+- Tesseract OCR (for scanned PDF fallback): [Install guide](https://github.com/UB-Mannheim/tesseract/wiki)
 
-### Semantic Skill Matching Tiers
-
-| Match Type | Score | Example |
-|---|---|---|
-| Exact match | 1.0 | "Python" vs "Python" |
-| Substring match | 0.95 | "React" vs "ReactJS" |
-| Same semantic cluster | 0.90 | "FastAPI" vs "Django" (both backend) |
-| No match | 0.0 | "Python" vs "Kubernetes" |
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Web Framework** | FastAPI 0.115.5 |
-| **AI Model** | LLaMA 3.3 70B Versatile via Groq LPU |
-| **AI Client** | OpenAI SDK (Groq-compatible endpoint) |
-| **Data Validation** | Pydantic v2 |
-| **PDF Extraction (T1)** | PyMuPDF (fitz) |
-| **PDF Extraction (T2)** | pdfplumber |
-| **PDF Extraction (T3)** | Tesseract OCR + pdf2image + Poppler |
-| **Web Server** | Uvicorn (ASGI) |
-| **Environment Config** | python-dotenv |
-| **Frontend** | HTML + Vanilla JS + CSS (glassmorphism dark theme) |
-
----
-
-## 📋 Prerequisites
-
-Before installing, ensure you have:
-
-- **Python 3.12+** — [Download](https://www.python.org/downloads/)
-- **Poppler for Windows** — Required by `pdf2image` to convert PDF pages to images
-- **Tesseract OCR** — Required by `pytesseract` to read text from images
-- **Groq API Key** — Free at [console.groq.com](https://console.groq.com)
-
----
-
-## 🚀 Installation
-
-### Step 1 — Download the Project
+### 2. Setup
 
 ```bash
-cd D:\
-git clone <your-repo-url> ATS_Resume
-cd ATS_Resume
-```
+# Clone the repo
+git clone https://github.com/your-username/ATS_Resume_score.git
+cd ATS_Resume_score/ats-v2/backend
 
----
+# Create virtual environment
+python -m venv .venv
+.venv\Scripts\activate      # Windows
+# source .venv/bin/activate # Linux/Mac
 
-### Step 2 — Install Poppler (Windows)
-
-Poppler converts PDF pages into images for OCR processing.
-
-1. Download from: https://github.com/oschwartz10612/poppler-windows/releases
-2. Extract the zip to `C:\poppler`
-3. Verify this path exists: `C:\poppler\poppler-24.08.0\Library\bin\pdftoppm.exe`
-
-> This path is hardcoded in `main.py` line ~222. If you extract elsewhere, update it.
-
----
-
-### Step 3 — Install Tesseract OCR (Windows)
-
-Tesseract reads text from images (for scanned resume PDFs).
-
-1. Download installer: https://github.com/UB-Mannheim/tesseract/releases
-   - File: `tesseract-ocr-w64-setup-5.4.0.20240606.exe`
-2. Double-click to install
-3. On "Choose Install Location", set path to: `D:\OCR_Setup`
-4. Complete installation
-
-> The path `D:\OCR_Setup\tesseract.exe` is configured in `main.py` line ~218. Update if you installed elsewhere.
-
----
-
-### Step 4 — Create Virtual Environment
-
-```powershell
-& "D:\Python312\python.exe" -m venv .venv
-```
-
----
-
-### Step 5 — Activate Virtual Environment
-
-```powershell
-# Windows PowerShell
-.\.venv\Scripts\Activate.ps1
-```
-
-You will see `(.venv)` in your terminal prompt when active.
-
----
-
-### Step 6 — Install Python Dependencies
-
-```powershell
+# Install dependencies
 pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env — add your GROQ_API_KEY
 ```
 
----
+### 3. Run
 
-### Step 7 — Configure Environment Variables
-
-Edit the `.env` file in the project root:
-
-```env
-# REQUIRED: Get your free API key at https://console.groq.com
-GROQ_API_KEY="gsk_your_key_here"
-
-# AI Model
-GROQ_MODEL=llama-3.3-70b-versatile
-GROQ_FALLBACK_MODEL=llama-3.3-70b-versatile
-
-# Server
-HOST=0.0.0.0
-PORT=8000
-
-# Scoring Configuration
-EXPERIENCE_TARGET_MONTHS=36
-OCR_CHAR_THRESHOLD=150
-MAX_FILE_SIZE_MB=10
-```
-
----
-
-## ▶️ Running the Project
-
-### Start the Backend
-
-```powershell
-# 1. Activate virtual environment
-.\.venv\Scripts\Activate.ps1
-
-# 2. Start server
+```bash
+# From ats-v2/backend/
 python main.py
 ```
 
-Expected output:
-```
-INFO | ATS Resume Analyzer starting - model: llama-3.3-70b-versatile
-INFO | Uvicorn running on http://0.0.0.0:8000
-```
+Open **http://localhost:8000** in your browser.
 
-### Open the Frontend
+---
 
-Open `index.html` in your browser, or visit `http://localhost:8000`
+## Docker Deployment
 
-### API Docs (Swagger UI)
+```bash
+# From the project root
+cp .env.production.example .env
+# Edit .env — set GROQ_API_KEY and API_KEY
 
-```
-http://localhost:8000/docs
+docker compose up -d
 ```
 
-### Health Check
+The app will be available at **http://localhost:8000**.
 
-```
-http://localhost:8000/health
+The SQLite database and downloaded embedding model (~90MB, one-time download) are persisted in a Docker volume (`ats_data`).
+
+---
+
+## API Reference
+
+Full interactive docs available at **http://localhost:8000/docs**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check (public) |
+| POST | `/api/v1/analyze` | Analyze a resume |
+| GET | `/api/v1/history` | List past analyses |
+| GET | `/api/v1/analyses/{id}` | Get analysis detail |
+| GET | `/api/v1/compare?a={id}&b={id}` | Compare two analyses |
+| POST | `/api/v1/feedback` | Submit recruiter feedback |
+| GET | `/api/v1/analytics/summary` | Aggregate analytics |
+
+All endpoints except `/health` require the `X-API-Key` header.
+
+---
+
+## Scoring System
+
+| Component | Weight | Method |
+|-----------|--------|--------|
+| Skill Match | **35%** | 4-tier: exact → alias → cluster → embedding cosine similarity |
+| Experience Longevity | **25%** | Logarithmic curve on total months |
+| Contextual AI Fit | **40%** | Groq LLM evaluation of experience vs. JD |
+
+---
+
+## Running Tests
+
+```bash
+cd ats-v2/backend
+python -m pytest tests/ -v
+# 61 tests — all should pass
 ```
 
 ---
 
-## 📡 API Reference
+## Groq Models
 
-### `POST /api/v1/analyze`
+This project uses the Groq API. Available models depend on your account tier. 
+Currently configured: `groq/compound` (primary) + `qwen/qwen3.6-27b` (fallback).
 
-Analyzes a resume PDF against a job description.
-
-**Request** — `multipart/form-data`
-
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `resume` | File (PDF) | Yes | Candidate resume in PDF format (max 10 MB) |
-| `job_description` | string | Yes | Full job description text |
-| `required_skills` | string | No | Comma-separated skills e.g. `"Python, Docker, AWS"` |
-| `experience_target_months` | int | No | Override experience target (default: 36) |
-
-**Response** — `200 OK`
-
-```json
-{
-  "candidate_name": "Rahul Sharma",
-  "total_score": 72.5,
-  "semantic_skill_match": 32.0,
-  "experience_longevity": 26.25,
-  "context_alignment": 18.5,
-  "context_justification": "The candidate demonstrates strong backend skills...",
-  "total_experience_months": 3,
-  "matched_skills": ["Python", "Django", "FastAPI"],
-  "missing_skills": ["Docker", "AWS"],
-  "extraction_tier_used": 1,
-  "processing_time_ms": 2450,
-  "calibration_applied": false,
-  "parsed_resume": {
-    "name": "Rahul Sharma",
-    "skills": ["Python", "Django", "MongoDB", "FastAPI", "LangChain"],
-    "experience": [
-      {
-        "company": "Ascent Cyber Solutions",
-        "role": "Software Development Intern",
-        "duration_months": 3,
-        "responsibilities": ["Built ATM EJ Parser", "Created analytics dashboard"]
-      }
-    ],
-    "education": ["B.Tech IT, PICT Pune"]
-  }
-}
-```
-
-**Error Codes**
-
-| Code | Reason |
-|---|---|
-| `422` | Could not extract text from PDF across all tiers |
-| `415` | Uploaded file is not a PDF |
-| `413` | File exceeds 10 MB size limit |
-| `504` | Groq API request timed out |
-| `503` | GROQ_API_KEY not configured |
-| `502` | Groq API connection error |
+Check available models: `GET https://api.groq.com/openai/v1/models`
 
 ---
 
-### `GET /health`
+## License
 
-Returns server status and configuration.
-
-```json
-{
-  "status": "ok",
-  "model": "llama-3.3-70b-versatile",
-  "experience_target_months": 36,
-  "api_key_configured": true
-}
-```
-
----
-
-## 📁 Project Structure
-
-```
-ATS_Resume/
-├── main.py              # FastAPI backend — all logic
-├── index.html           # Frontend dashboard (HTML + JS + CSS)
-├── requirements.txt     # Python dependencies
-├── .env                 # Environment variables (API keys, config)
-├── test_api.py          # API test script
-├── .vscode/
-│   └── settings.json    # VS Code interpreter -> .venv
-└── README.md            # This file
-```
-
----
-
-## 🔧 Troubleshooting
-
-### Red squiggly lines in VS Code (import errors)
-**Cause:** VS Code is using the wrong Python interpreter.
-**Fix:** `Ctrl+Shift+P` -> `Python: Select Interpreter` -> select `.venv\Scripts\python.exe`
-
----
-
-### `tesseract is not installed or it's not in your PATH`
-**Cause:** Tesseract path not found.
-**Fix:** Verify `D:\OCR_Setup\tesseract.exe` exists. If installed elsewhere, update `main.py` line ~218:
-```python
-pytesseract.pytesseract.tesseract_cmd = r"D:\your\path\tesseract.exe"
-```
-
----
-
-### `Unable to get page count. Is poppler installed and in PATH?`
-**Cause:** Poppler not found.
-**Fix:** Verify `C:\poppler\poppler-24.08.0\Library\bin\pdftoppm.exe` exists. Update `main.py` line ~222 if path differs.
-
----
-
-### `GROQ_API_KEY environment variable is not configured`
-**Fix:** Ensure `.env` has `GROQ_API_KEY="gsk_..."` and restart the server after editing.
-
----
-
-### Skill score stuck at 16/40
-**Cause:** No required skills were entered.
-**Fix:** Fill the "Required Skills" field in the UI with comma-separated skills from the job posting.
-Example: `Python, Docker, REST APIs, PostgreSQL`
-
----
-
-### `422 — Could not extract any text from the uploaded PDF`
-**Cause:** All 3 extraction tiers returned empty (Poppler or Tesseract misconfigured).
-**Fix:** Check that Poppler and Tesseract paths in `main.py` are correct.
-
----
-
-## 📊 Score Calculation Reference
-
-### Experience Longevity (0-35 pts)
-```
-Total months = sum of all job durations in parsed resume
-
-0 months (has skills/projects) --> 60%  x 35 = 21.00 pts
-1-11 months (internship)       --> 75%  x 35 = 26.25 pts
-12-35 months                   --> 90%  x 35 = 31.50 pts
-36+ months                     --> 100% x 35 = 35.00 pts
-```
-
-### Semantic Skill Score (0-40 pts)
-```
-For each required skill:
-  Compare against every resume skill using get_semantic_similarity()
-  Take the best match score
-  Add to running total
-
-raw_ratio = total_similarity / number_of_required_skills
-raw_score = raw_ratio x 40
-final = max(raw_score, 16)   <-- floor of 16 pts (40%)
-```
-
-### Context Alignment (0-25 pts)
-```
-LLM reads job description + candidate responsibilities
-LLM returns score 0-100 + written justification
-normalised = (llm_score / 100) x 25
-final = max(normalised, 10)   <-- floor of 10 pts (40%)
-```
-
-### Final Score
-```
-total = semantic_skill + experience + context    (max: 100)
-
-Calibration bonus (student protection):
-  if total < 70 AND semantic_skill >= 30:
-      total += 10
-
-final_score = clamp(total, 0, 100)
-```
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Commit your changes: `git commit -m "Add my feature"`
-4. Push: `git push origin feature/my-feature`
-5. Open a Pull Request
-
----
-
-## 📜 License
-
-MIT License — free to use, modify, and distribute.
-
----
-
-## 🙏 Acknowledgements
-
-- [Groq](https://groq.com) — Ultra-fast LPU inference for LLMs
-- [Meta LLaMA](https://llama.meta.com) — Open-source large language model
-- [FastAPI](https://fastapi.tiangolo.com) — Modern, fast Python web framework
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) — Google's open-source OCR engine
-- [PyMuPDF](https://pymupdf.readthedocs.io) — High-performance PDF processing
-- [pdfplumber](https://github.com/jsvine/pdfplumber) — Precise PDF text and table extraction
+MIT

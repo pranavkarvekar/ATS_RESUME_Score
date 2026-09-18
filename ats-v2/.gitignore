@@ -1,0 +1,45 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+
+# Database
+*.db
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# ONNX models (large binary — download separately)
+*.onnx
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Docker
+*.log
+
+# Node (frontend)
+node_modules/

@@ -1,0 +1,42 @@
+version: "3.9"
+
+# ============================================================
+# ATS Resume Analyzer v2 — Docker Compose
+# Usage: docker compose up -d
+# ============================================================
+
+services:
+  ats-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ats-v2
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Copy from .env.production or set directly here
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_MODEL=${GROQ_MODEL:-groq/compound}
+      - GROQ_FALLBACK_MODEL=${GROQ_FALLBACK_MODEL:-qwen/qwen3.6-27b}
+      - GROQ_BASE_URL=${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+      - API_KEY=${API_KEY:-change-this-in-production}
+      - DATABASE_URL=${DATABASE_URL:-sqlite+aiosqlite:////app/data/ats_data.db}
+      - HOST=0.0.0.0
+      - PORT=8000
+      # Embedding model cache directory
+      - TRANSFORMERS_CACHE=/app/data/model_cache
+      - HF_HOME=/app/data/model_cache
+    volumes:
+      # Persist SQLite DB and downloaded embedding model across restarts
+      - ats_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  ats_data:
+    driver: local

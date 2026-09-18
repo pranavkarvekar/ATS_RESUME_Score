@@ -1,0 +1,157 @@
+/* ═══════════════════════════════════════════════════
+   ATS Resume Analyzer v2 — Design Tokens
+   Single source of truth for all visual values.
+   Referenced by all other CSS files.
+   ═══════════════════════════════════════════════════ */
+
+:root {
+  /* ── Typography ────────────────────────────── */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  --text-xs:      0.75rem;
+  --text-sm:      0.875rem;
+  --text-base:    1rem;
+  --text-lg:      1.125rem;
+  --text-xl:      1.25rem;
+  --text-2xl:     1.5rem;
+  --text-3xl:     1.875rem;
+  --text-score:   3.5rem;
+
+  --font-normal:   400;
+  --font-medium:   500;
+  --font-semibold: 600;
+  --font-bold:     700;
+
+  --leading-tight:   1.25;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.625;
+
+  --tracking-tight:  -0.025em;
+  --tracking-normal: 0em;
+  --tracking-wide:   0.025em;
+  --tracking-wider:  0.05em;
+
+  /* ── Spacing ───────────────────────────────── */
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.25rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* ── Border Radius ─────────────────────────── */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-full: 9999px;
+
+  /* ── Transitions ───────────────────────────── */
+  --duration-fast:   0.15s;
+  --duration-normal: 0.25s;
+  --duration-slow:   0.4s;
+  --duration-score:  1.6s;
+
+  --ease-out:     cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-in-out:  cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-bounce:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-score:   cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── Score Colors ──────────────────────────── */
+  --score-low:       #EF4444;
+  --score-medium:    #F59E0B;
+  --score-high:      #10B981;
+  --score-excellent: #3B82F6;
+}
+
+/* ── Dark Theme (Default) ──────────────────── */
+:root,
+[data-theme="dark"] {
+  --bg-primary:       #0B0F19;
+  --bg-secondary:     #111827;
+  --bg-tertiary:      #1F2937;
+  --bg-elevated:      #1a2332;
+
+  --border-primary:   #1F2937;
+  --border-secondary: #374151;
+  --border-accent:    #3B82F6;
+
+  --text-primary:     #F9FAFB;
+  --text-secondary:   #9CA3AF;
+  --text-tertiary:    #6B7280;
+
+  --accent-primary:       #3B82F6;
+  --accent-primary-hover: #2563EB;
+  --accent-secondary:     #8B5CF6;
+  --accent-glow:          rgba(59, 130, 246, 0.15);
+
+  --color-success:    #10B981;
+  --color-success-bg: rgba(16, 185, 129, 0.10);
+  --color-warning:    #F59E0B;
+  --color-warning-bg: rgba(245, 158, 11, 0.10);
+  --color-error:      #EF4444;
+  --color-error-bg:   rgba(239, 68, 68, 0.10);
+  --color-info:       #3B82F6;
+  --color-info-bg:    rgba(59, 130, 246, 0.10);
+
+  --sidebar-bg:         #0D1117;
+  --sidebar-active:     rgba(59, 130, 246, 0.12);
+  --sidebar-hover:      rgba(255, 255, 255, 0.04);
+  --table-row-hover:    rgba(255, 255, 255, 0.03);
+  --input-bg:           #1F2937;
+  --input-border:       #374151;
+  --input-focus-border: #3B82F6;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.15);
+}
+
+/* ── Light Theme ───────────────────────────── */
+[data-theme="light"] {
+  --bg-primary:       #F9FAFB;
+  --bg-secondary:     #FFFFFF;
+  --bg-tertiary:      #F3F4F6;
+  --bg-elevated:      #FFFFFF;
+
+  --border-primary:   #E5E7EB;
+  --border-secondary: #D1D5DB;
+  --border-accent:    #3B82F6;
+
+  --text-primary:     #111827;
+  --text-secondary:   #6B7280;
+  --text-tertiary:    #9CA3AF;
+
+  --accent-primary:       #2563EB;
+  --accent-primary-hover: #1D4ED8;
+  --accent-secondary:     #7C3AED;
+  --accent-glow:          rgba(37, 99, 235, 0.10);
+
+  --color-success:    #059669;
+  --color-success-bg: rgba(5, 150, 105, 0.08);
+  --color-warning:    #D97706;
+  --color-warning-bg: rgba(217, 119, 6, 0.08);
+  --color-error:      #DC2626;
+  --color-error-bg:   rgba(220, 38, 38, 0.08);
+  --color-info:       #2563EB;
+  --color-info-bg:    rgba(37, 99, 235, 0.08);
+
+  --sidebar-bg:         #FFFFFF;
+  --sidebar-active:     rgba(37, 99, 235, 0.08);
+  --sidebar-hover:      rgba(0, 0, 0, 0.03);
+  --table-row-hover:    rgba(0, 0, 0, 0.02);
+  --input-bg:           #FFFFFF;
+  --input-border:       #D1D5DB;
+  --input-focus-border: #3B82F6;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.10);
+  --shadow-glow: 0 0 20px rgba(37, 99, 235, 0.08);
+}
