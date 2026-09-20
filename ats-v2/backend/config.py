@@ -24,7 +24,24 @@ load_dotenv(_ENV_PATH, override=True)
 # Paths
 # ─────────────────────────────────────────────
 BASE_DIR: Path = Path(__file__).resolve().parent
-FRONTEND_DIR: Path = BASE_DIR.parent / "frontend"
+
+def _find_frontend_dir() -> Path:
+    """Finds frontend directory across local dev, Docker container, and custom env."""
+    env_dir = os.getenv("FRONTEND_DIR")
+    if env_dir and Path(env_dir).exists():
+        return Path(env_dir)
+    # Docker container: /app/frontend (BASE_DIR is /app)
+    if (BASE_DIR / "frontend").exists():
+        return BASE_DIR / "frontend"
+    # Local dev from backend directory: ats-v2/frontend (BASE_DIR is .../backend)
+    if (BASE_DIR.parent / "frontend").exists():
+        return BASE_DIR.parent / "frontend"
+    # Root workspace: ats-v2/frontend
+    if (BASE_DIR / "ats-v2" / "frontend").exists():
+        return BASE_DIR / "ats-v2" / "frontend"
+    return BASE_DIR.parent / "frontend"
+
+FRONTEND_DIR: Path = _find_frontend_dir()
 
 
 # ─────────────────────────────────────────────

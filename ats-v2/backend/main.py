@@ -140,6 +140,8 @@ _css_dir = FRONTEND_DIR / "css"
 _js_dir = FRONTEND_DIR / "js"
 _pages_dir = FRONTEND_DIR / "pages"
 
+log.info("Frontend directory resolved to: %s (index.html exists: %s)", FRONTEND_DIR, (FRONTEND_DIR / "index.html").exists())
+
 if _css_dir.exists():
     app.mount("/css", StaticFiles(directory=str(_css_dir)), name="css")
 if _js_dir.exists():

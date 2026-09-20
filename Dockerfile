@@ -7,6 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     HOST=0.0.0.0 \
     PORT=8000 \
+    FRONTEND_DIR=/app/frontend \
     DEBIAN_FRONTEND=noninteractive
 
 # System deps: OCR + PDF + curl for healthcheck
