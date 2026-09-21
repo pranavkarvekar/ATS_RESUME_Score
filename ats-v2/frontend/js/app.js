@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedFile,
         jdInput.value.trim(),
         skillsInput.value.trim(),
-        parseInt(expInput.value) || 36,
+        (expInput.value.trim() === '' ? 36 : (parseInt(expInput.value) ?? 36)),
       );
 
       clearInterval(stepInterval);
