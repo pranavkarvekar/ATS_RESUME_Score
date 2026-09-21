@@ -53,6 +53,9 @@ async def analyze_resume(
     """
     start_time = time.time()
 
+    # DEBUG: Log exactly what the frontend sent
+    log.info(">>> RECEIVED experience_target_months = %d (type: %s)", experience_target_months, type(experience_target_months).__name__)
+
     # ── Input validation ──────────────────────
     if not job_description.strip():
         raise HTTPException(
