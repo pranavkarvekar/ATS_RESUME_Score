@@ -23,12 +23,13 @@ def compute_experience_longevity(
     if target_months <= 0:
         return max_score
         
-    # Exceeds or meets target
-    if total_months >= target_months:
+    diff = target_months - total_months
+    
+    if diff <= 0:
         return max_score
-        
-    # Proportional scoring: (Candidate Exp / Target Exp) * Max Score
-    # Example: target is 24, candidate has 12 -> 50% score
-    # Target is 12, candidate has 0 -> 0% score
-    ratio = total_months / target_months
-    return round(max_score * ratio, 2)
+    elif diff <= 12:
+        return round(max_score * 0.8, 2)
+    elif diff <= 24:
+        return round(max_score * 0.5, 2)
+    else:
+        return 0.0
