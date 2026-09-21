@@ -220,6 +220,10 @@ class AnalysisResult(BaseModel):
     processing_time_ms: int = 0
     calibration_applied: bool = False
 
+    # Fresher mode — auto-detected or explicitly set
+    fresher_mode_detected: bool = False
+    fresher_detection_reason: str = ""  # e.g. "JD keyword detected: 'fresher'" or "experience_target_months set to 0"
+
     # Parse pipeline metadata
     llm_parse_attempts: int = 0
     used_regex_fallback: bool = False

@@ -20,6 +20,7 @@ from security.sanitizer import sanitize_text
 from extraction import pipeline
 from parsing import llm_parser, verifier
 from scoring import aggregator
+from scoring.fresher_detector import resolve_experience_target
 from db.database import get_session
 from db import crud
 
@@ -146,7 +147,14 @@ async def analyze_resume(
         parsed_resume, clean_text if clean_text else ""
     )
 
-    # 6. Scoring Engine
+    # 6. Fresher-mode resolution
+    # Triggers: (a) recruiter sends 0 explicitly  OR  (b) JD text contains fresher keywords
+    effective_target_months, fresher_mode, fresher_reason = resolve_experience_target(
+        experience_target_months=experience_target_months,
+        job_description=job_description,
+    )
+
+    # 7. Scoring Engine
     (
         total_score,
         skill_score,
@@ -159,7 +167,7 @@ async def analyze_resume(
         parsed_resume=parsed_resume,
         job_description=job_description,
         required_skills=skills_list,
-        target_months=experience_target_months,
+        target_months=effective_target_months,
         skill_weight=35,
         experience_weight=25,
         context_weight=40
@@ -202,6 +210,8 @@ async def analyze_resume(
         unverified_fields=[],
         created_at=datetime.now(timezone.utc),
         calibration_applied=cache_hit,
+        fresher_mode_detected=fresher_mode,
+        fresher_detection_reason=fresher_reason,
     )
 
     # 7. Store in database

@@ -12,11 +12,14 @@ def compute_experience_longevity(
 ) -> float:
     """
     Bracket system logic from PRD Section 4.2.2.
+    - FRESHER MODE (target_months <= 0): everyone gets full score — experience irrelevant
     - Matches or exceeds target: 100% of max_score
     - Within 1 year (12 months) of target: 80%
     - Within 2 years (24 months) of target: 50%
     - Anything less: 0%
     """
+    # FRESHER MODE: role requires 0 experience (explicit 0 or auto-detected via JD keywords)
+    # giving everyone full 25/25 is the FAIR approach — experience dimension does not apply
     if target_months <= 0:
         return max_score
         
