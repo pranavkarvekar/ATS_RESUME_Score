@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedFile,
         jdInput.value.trim(),
         skillsInput.value.trim(),
-        (expInput.value.trim() === '' ? 36 : (parseInt(expInput.value) ?? 36)),
+        (isNaN(parseInt(expInput.value)) ? 36 : parseInt(expInput.value)),
       );
 
       clearInterval(stepInterval);
