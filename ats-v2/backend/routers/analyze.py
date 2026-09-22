@@ -111,6 +111,9 @@ async def analyze_resume(
         extracted_text = "[cached — extraction skipped]"
         clean_text = ""
         log.info("Cache HIT for %s — skipping extraction + parsing", resume_hash[:12])
+        
+        ctx_score = None
+        justification = None
     else:
         # Cache miss — full pipeline
         # 3a. Extract text
@@ -158,6 +161,11 @@ async def analyze_resume(
         experience_target_months=experience_target_months,
         job_description=job_description,
     )
+
+    if ctx_score is None:
+        log.info("Calculating contextual score separately due to cache hit...")
+        from scoring import contextual
+        ctx_score, justification = await contextual.compute_contextual_fit_score(parsed_resume, job_description)
 
     # 7. Scoring Engine (modified to use pre-calculated ctx_score)
     (
