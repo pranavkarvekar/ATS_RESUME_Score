@@ -9,9 +9,10 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
 from models.schemas import HealthResponse
-from config import GROQ_API_KEY, GROQ_MODEL, DEFAULT_SKILL_WEIGHT, DEFAULT_EXPERIENCE_WEIGHT, DEFAULT_CONTEXT_WEIGHT
+from config import GROQ_API_KEY, GROQ_MODEL, DEFAULT_SKILL_WEIGHT, DEFAULT_EXPERIENCE_WEIGHT, DEFAULT_CONTEXT_WEIGHT, API_KEY
 
 log = logging.getLogger("ats.health")
 router = APIRouter()
@@ -43,3 +44,18 @@ async def health_check() -> HealthResponse:
             "context": DEFAULT_CONTEXT_WEIGHT,
         },
     )
+
+
+@router.get(
+    "/api/config",
+    tags=["Operations"],
+    summary="Frontend configuration (public)",
+    include_in_schema=False,
+)
+async def get_frontend_config() -> JSONResponse:
+    """
+    Returns runtime configuration for the frontend.
+    Public endpoint — served from same origin as frontend.
+    Allows the frontend to pick up the correct API key at runtime.
+    """
+    return JSONResponse({"api_key": API_KEY})

@@ -28,6 +28,7 @@ PUBLIC_PATHS: set[str] = {
     "/openapi.json",
     "/",
     "/favicon.ico",
+    "/api/config",
 }
 
 

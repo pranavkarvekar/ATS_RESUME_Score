@@ -7,7 +7,20 @@
 
 const API = (() => {
   const BASE_URL = window.location.origin;
-  const API_KEY = 'dev-api-key-change-in-production';
+  let API_KEY = 'dev-api-key-change-in-production'; // fallback default
+
+  // Fetch the real API key from the backend at startup
+  (async () => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/config`);
+      if (res.ok) {
+        const cfg = await res.json();
+        if (cfg.api_key) API_KEY = cfg.api_key;
+      }
+    } catch (e) {
+      console.warn('Could not fetch API config, using default key');
+    }
+  })();
 
   /**
    * Make an authenticated request to the backend.
