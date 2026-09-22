@@ -126,14 +126,16 @@ async def analyze_resume(
         # 3b. Sanitize text
         clean_text = sanitize_text(extracted_text)
 
-        # 4. Parse with LLM
+        # 4. Parse with LLM (and get contextual score)
         try:
-            parsed_resume, parse_attempts, used_fallback = await llm_parser.parse_resume_with_groq(clean_text)
+            parsed_resume, ctx_score, justification, parse_attempts, used_fallback = await llm_parser.parse_resume_with_groq(clean_text, job_description)
         except Exception as e:
             log.error("LLM Parsing failed unexpectedly: %s — using regex fallback", str(e))
             from parsing import regex_fallback
             fallback_data = regex_fallback.fallback_parse(clean_text)
             parsed_resume = ParsedResume(**fallback_data)
+            ctx_score = 10.0
+            justification = "Error calculating contextual score. Defaulting to base."
             parse_attempts = 0
             used_fallback = True
 
@@ -143,6 +145,7 @@ async def analyze_resume(
 
         # Store in cache
         async with get_session() as session:
+            # Note: We don't cache the ctx_score because it's JD-specific
             await crud.cache_resume(session, resume_hash, parsed_resume, tier_num, parse_attempts, used_fallback)
 
     # 5. Verify parsed data
@@ -151,30 +154,32 @@ async def analyze_resume(
     )
 
     # 6. Fresher-mode resolution
-    # Triggers: (a) recruiter sends 0 explicitly  OR  (b) JD text contains fresher keywords
     effective_target_months, fresher_mode, fresher_reason = resolve_experience_target(
         experience_target_months=experience_target_months,
         job_description=job_description,
     )
 
-    # 7. Scoring Engine
+    # 7. Scoring Engine (modified to use pre-calculated ctx_score)
     (
         total_score,
         skill_score,
         exp_score,
-        ctx_score,
+        _, # Ignore aggregator's ctx_score computation
         matched_skills,
         missing_skills,
-        justification
+        _ # Ignore aggregator's justification
     ) = await aggregator.calculate_total_score(
         parsed_resume=parsed_resume,
-        job_description=job_description,
+        job_description=job_description, # Passing JD for consistency, though contextual.py will be bypassed
         required_skills=skills_list,
         target_months=effective_target_months,
         skill_weight=35,
         experience_weight=25,
         context_weight=40
     )
+    
+    # Actually calculate total score with the LLM-provided ctx_score
+    total_score = round(max(0.0, min(skill_score + exp_score + ctx_score, 100.0)), 2)
 
     total_candidate_months = sum(exp.duration_months for exp in parsed_resume.experience)
     processing_time_ms = int((time.time() - start_time) * 1000)

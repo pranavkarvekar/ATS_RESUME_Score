@@ -38,8 +38,9 @@ alembic==1.14.1
 slowapi==0.1.9
 
 # --- Semantic Embedding Similarity (Phase 8) ---
-# Model: all-MiniLM-L6-v2 (~90MB, downloads on first use)
-sentence-transformers>=3.0.0
+# Model: all-MiniLM-L6-v2 ONNX Runtime (CPU)
+onnxruntime>=1.17.0
+transformers>=4.40.0
 
 # --- HTTP Client ---
 httpx==0.27.2

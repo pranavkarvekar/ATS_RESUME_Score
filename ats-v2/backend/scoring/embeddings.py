@@ -20,99 +20,119 @@ from __future__ import annotations
 
 import logging
 import threading
+import numpy as np
 from typing import Optional
 
 log = logging.getLogger("ats.scoring.embeddings")
 
-# ── Model state ──────────────────────────────────────────────
-_model = None
+_session = None
+_tokenizer = None
 _model_lock = threading.Lock()
-_model_available: Optional[bool] = None   # None = not checked yet
-MODEL_NAME = "all-MiniLM-L6-v2"
+_model_available: Optional[bool] = None
 
+MODEL_NAME = "all-MiniLM-L6-v2"
+_embed_cache: dict[str, np.ndarray] = {}
 
 def _load_model():
-    """Lazy-loads the sentence-transformers model (thread-safe)."""
-    global _model, _model_available
+    global _session, _tokenizer, _model_available
 
     with _model_lock:
         if _model_available is not None:
-            return _model  # Already attempted
+            return _session, _tokenizer
 
         try:
-            from sentence_transformers import SentenceTransformer
-            log.info("Loading embedding model: %s ...", MODEL_NAME)
-            _model = SentenceTransformer(MODEL_NAME)
+            import onnxruntime as ort
+            from transformers import AutoTokenizer
+            import config
+            
+            log.info("Loading ONNX embedding model and tokenizer...")
+            
+            if not config.ONNX_MODEL_PATH.exists():
+                log.warning("ONNX model not found at %s", config.ONNX_MODEL_PATH)
+                raise FileNotFoundError()
+                
+            _tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+            # Use CPUExecutionProvider for standard CPU environments
+            _session = ort.InferenceSession(str(config.ONNX_MODEL_PATH), providers=["CPUExecutionProvider"])
+            
             _model_available = True
-            log.info("Embedding model loaded — semantic similarity enabled.")
+            log.info("ONNX Embedding model loaded successfully.")
         except ImportError:
-            log.warning("sentence-transformers not installed. Semantic similarity disabled.")
+            log.warning("onnxruntime or transformers not installed. Semantic similarity disabled.")
             _model_available = False
         except Exception as exc:
-            log.error("Failed to load embedding model: %s", exc)
+            log.error("Failed to load ONNX embedding model: %s", exc)
             _model_available = False
 
-    return _model
-
+    return _session, _tokenizer
 
 def is_available() -> bool:
-    """Returns True if the embedding model is loaded and ready."""
     if _model_available is None:
         _load_model()
     return bool(_model_available)
 
+def _mean_pooling(model_output, attention_mask):
+    token_embeddings = model_output
+    input_mask_expanded = np.expand_dims(attention_mask, -1)
+    input_mask_expanded = np.broadcast_to(input_mask_expanded, token_embeddings.shape)
+    
+    sum_embeddings = np.sum(token_embeddings * input_mask_expanded, axis=1)
+    sum_mask = np.clip(np.sum(input_mask_expanded, axis=1), a_min=1e-9, a_max=None)
+    
+    return sum_embeddings / sum_mask
 
-def cosine_similarity(vec_a: list[float], vec_b: list[float]) -> float:
-    """Pure-Python cosine similarity (no numpy required)."""
-    dot = sum(a * b for a, b in zip(vec_a, vec_b))
-    mag_a = sum(a * a for a in vec_a) ** 0.5
-    mag_b = sum(b * b for b in vec_b) ** 0.5
-    if mag_a == 0.0 or mag_b == 0.0:
-        return 0.0
-    return dot / (mag_a * mag_b)
-
+def _encode(sentences: list[str]) -> np.ndarray:
+    """Encodes sentences using ONNX, utilizing memory cache."""
+    session, tokenizer = _load_model()
+    if not session or not tokenizer:
+        return np.zeros((len(sentences), 384))
+    
+    uncached = [s for s in sentences if s not in _embed_cache]
+    
+    if uncached:
+        encoded_input = tokenizer(uncached, padding=True, truncation=True, return_tensors='np')
+        
+        ort_inputs = {
+            session.get_inputs()[0].name: encoded_input['input_ids'],
+            session.get_inputs()[1].name: encoded_input['attention_mask'],
+        }
+        
+        input_names = [i.name for i in session.get_inputs()]
+        if 'token_type_ids' in input_names and 'token_type_ids' in encoded_input:
+            ort_inputs['token_type_ids'] = encoded_input['token_type_ids']
+            
+        ort_outs = session.run(None, ort_inputs)
+        sentence_embeddings = _mean_pooling(ort_outs[0], encoded_input['attention_mask'])
+        
+        norms = np.linalg.norm(sentence_embeddings, axis=1, keepdims=True)
+        sentence_embeddings = np.divide(sentence_embeddings, norms, out=np.zeros_like(sentence_embeddings), where=norms!=0)
+        
+        for i, sentence in enumerate(uncached):
+            _embed_cache[sentence] = sentence_embeddings[i]
+            
+    return np.array([_embed_cache[s] for s in sentences])
 
 def get_skill_similarity(skill_a: str, skill_b: str) -> float:
-    """
-    Returns cosine similarity [0.0, 1.0] between two skill strings
-    using the embedding model.  Falls back to 0.0 if unavailable.
-    """
-    model = _load_model()
-    if model is None:
+    if not is_available():
         return 0.0
-
     try:
-        vecs = model.encode([skill_a, skill_b], normalize_embeddings=True)
-        sim = float(sum(a * b for a, b in zip(vecs[0], vecs[1])))
+        vecs = _encode([skill_a, skill_b])
+        sim = float(np.dot(vecs[0], vecs[1]))
         return max(0.0, min(1.0, sim))
     except Exception as exc:
         log.warning("Embedding similarity failed: %s", exc)
         return 0.0
 
-
 def batch_similarity(skills_a: list[str], skills_b: list[str]) -> list[list[float]]:
-    """
-    Returns a len(skills_a) x len(skills_b) similarity matrix.
-    Falls back to all-zeros if model unavailable.
-    """
-    model = _load_model()
-    if model is None or not skills_a or not skills_b:
+    if not is_available() or not skills_a or not skills_b:
         return [[0.0] * len(skills_b) for _ in skills_a]
 
     try:
-        all_skills = skills_a + skills_b
-        vecs = model.encode(all_skills, normalize_embeddings=True)
-        vecs_a = vecs[:len(skills_a)]
-        vecs_b = vecs[len(skills_a):]
-
-        matrix = []
-        for va in vecs_a:
-            row = []
-            for vb in vecs_b:
-                sim = float(sum(a * b for a, b in zip(va, vb)))
-                row.append(max(0.0, min(1.0, sim)))
-            matrix.append(row)
-        return matrix
+        vecs_a = _encode(skills_a)
+        vecs_b = _encode(skills_b)
+        
+        sim_matrix = np.dot(vecs_a, vecs_b.T)
+        return np.clip(sim_matrix, 0.0, 1.0).tolist()
     except Exception as exc:
         log.warning("Batch embedding similarity failed: %s", exc)
         return [[0.0] * len(skills_b) for _ in skills_a]

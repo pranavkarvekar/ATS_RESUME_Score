@@ -59,52 +59,47 @@ async def extract_resume_text(file_content: bytes, detected_type: str) -> Tuple[
 
 async def _run_pdf_pipeline(file_content: bytes) -> Tuple[str, str]:
     """
-    Runs the 3-tier PDF extraction pipeline.
+    Runs the 3-tier PDF extraction pipeline sequentially with early exits.
     """
     loop = asyncio.get_running_loop()
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-        # Run Tier 1 (PyMuPDF) and Tier 2 (pdfplumber) concurrently
-        t1_future = loop.run_in_executor(pool, tier1_fitz.extract_text, file_content)
-        t2_future = loop.run_in_executor(pool, tier2_plumber.extract_text, file_content)
-        
-        # We wait for Tier 1 first as it's our primary
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        # Tier 1 (PyMuPDF)
         try:
-            t1_text = await t1_future
+            t1_text = await loop.run_in_executor(pool, tier1_fitz.extract_text, file_content)
         except Exception as e:
-            log.warning("Tier 1 failed: %s. Falling back to Tier 2.", str(e))
+            log.warning("Tier 1 failed: %s.", str(e))
             t1_text = ""
             
         t1_len = len(t1_text)
         log.info("Tier 1 extracted %d characters", t1_len)
         
-        # 1. OCR Fallback (Tier 3)
+        # Early exit if we got enough text
+        if t1_len >= OCR_THRESHOLD_CHARS:
+            log.info("Tier 1 successful, returning early.")
+            return t1_text, "tier1_fitz"
+            
+        # 1. OCR Fallback (Tier 3) for very low character counts
         if t1_len < OCR_THRESHOLD_CHARS:
             log.warning("Very low character count (%d). Assuming scanned PDF.", t1_len)
             log.info("Triggering Tier 3 OCR fallback")
             try:
                 t3_text = await loop.run_in_executor(pool, tier3_ocr.extract_text, file_content)
-                if len(t3_text) > t1_len:
+                if len(t3_text) >= OCR_THRESHOLD_CHARS or len(t3_text) > t1_len:
                     return t3_text, "tier3_ocr"
             except Exception as e:
                 log.error("Tier 3 OCR failed: %s", str(e))
-                # If OCR fails, we just fall through and try to salvage Tier 2/Tier 1
+                # If OCR fails, we just fall through
                 
-        # 2. Complex Layout Detection (Tier 2 comparison)
+        # 2. Complex Layout Fallback (Tier 2) - only if we didn't early exit or OCR
         try:
-            t2_text = await t2_future
+            log.info("Falling back to Tier 2 (pdfplumber).")
+            t2_text = await loop.run_in_executor(pool, tier2_plumber.extract_text, file_content)
             t2_len = len(t2_text)
             log.info("Tier 2 extracted %d characters", t2_len)
             
-            # If Tier 2 extracted significantly more text, PyMuPDF probably dropped 
-            # sidebars or complex columns. Use Tier 2.
-            if t1_len == 0 and t2_len > 0:
+            if t2_len > t1_len:
                 return t2_text, "tier2_plumber"
-            elif t1_len > 0 and (t2_len / t1_len) >= TWO_COLUMN_THRESHOLD_RATIO:
-                log.info("Complex layout detected (Tier 2 yield is %d%% of Tier 1). Using Tier 2.", 
-                         int((t2_len / t1_len) * 100))
-                return t2_text, "tier2_plumber"
-                
         except Exception as e:
             log.warning("Tier 2 failed: %s", str(e))
             
