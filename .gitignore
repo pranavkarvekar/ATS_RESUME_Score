@@ -13,3 +13,5 @@ __pycache__/
 
 # Tesseract executable (large/local dependency - optional)
 tesseract_setup.exe
+# Database files
+*.db
