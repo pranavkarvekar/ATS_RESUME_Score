@@ -9,18 +9,11 @@ const API = (() => {
   const BASE_URL = window.location.origin;
   let API_KEY = 'dev-api-key-change-in-production'; // fallback default
 
-  // Fetch the real API key from the backend at startup
-  (async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/api/config`);
-      if (res.ok) {
-        const cfg = await res.json();
-        if (cfg.api_key) API_KEY = cfg.api_key;
-      }
-    } catch (e) {
-      console.warn('Could not fetch API config, using default key');
-    }
-  })();
+  // Fetch the real API key from the backend — store a promise so callers can await it
+  const _configReady = fetch(`${BASE_URL}/api/config`)
+    .then(res => res.ok ? res.json() : {})
+    .then(cfg => { if (cfg.api_key) API_KEY = cfg.api_key; })
+    .catch(() => console.warn('Could not fetch /api/config, using default key'));
 
   /**
    * Make an authenticated request to the backend.
@@ -29,6 +22,9 @@ const API = (() => {
    * @returns {Promise<Response>}
    */
   async function request(path, options = {}) {
+    // Wait for API key to be loaded from /api/config before making requests
+    await _configReady;
+
     const url = `${BASE_URL}${path}`;
     const headers = {
       'X-API-Key': API_KEY,
@@ -38,8 +34,13 @@ const API = (() => {
     const response = await fetch(url, { ...options, headers });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-      throw new Error(error.detail || `HTTP ${response.status}`);
+      // Try to parse JSON error, fallback to HTTP status text so user sees the real error
+      let detail = `HTTP ${response.status} ${response.statusText}`;
+      try {
+        const err = await response.json();
+        if (err.detail) detail = err.detail;
+      } catch (_) { /* body was not JSON (e.g. 502/504 HTML from proxy) */ }
+      throw new Error(detail);
     }
 
     return response.json();

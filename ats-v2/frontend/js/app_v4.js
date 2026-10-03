@@ -55,11 +55,57 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ═══════════════════════════════════════════
-  // Health Check
+  // Server Wakeup (Render free-tier cold start)
   // ═══════════════════════════════════════════
-  API.healthCheck()
-    .then(() => { apiStatus.classList.add('online'); apiStatus.classList.remove('offline'); })
-    .catch(() => { apiStatus.classList.add('offline'); apiStatus.classList.remove('online'); });
+  let serverReady = false;
+
+  function showWakeupBanner() {
+    // Show a banner so user knows server is waking up, not broken
+    let banner = document.getElementById('wakeup-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'wakeup-banner';
+      banner.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #000; text-align: center; padding: 10px 16px;
+        font-size: 14px; font-weight: 600; font-family: inherit;
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+      `;
+      banner.innerHTML = `
+        <span style="animation: spin 1s linear infinite; display:inline-block">⚙️</span>
+        <span>Server is starting up — please wait a moment (free tier cold start)...</span>
+      `;
+      const style = document.createElement('style');
+      style.textContent = '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }';
+      document.head.appendChild(style);
+      document.body.prepend(banner);
+    }
+  }
+
+  function hideWakeupBanner() {
+    const banner = document.getElementById('wakeup-banner');
+    if (banner) banner.remove();
+  }
+
+  async function pingUntilReady(attempts = 0) {
+    try {
+      await API.healthCheck();
+      serverReady = true;
+      apiStatus.classList.add('online');
+      apiStatus.classList.remove('offline');
+      hideWakeupBanner();
+    } catch (_) {
+      apiStatus.classList.add('offline');
+      apiStatus.classList.remove('online');
+      if (attempts >= 1) showWakeupBanner(); // show after first failed ping
+      if (attempts < 25) {
+        setTimeout(() => pingUntilReady(attempts + 1), 3000); // retry every 3s, max 75s
+      }
+    }
+  }
+
+  pingUntilReady();
 
   // ═══════════════════════════════════════════
   // File Upload — Drag & Drop + Click
