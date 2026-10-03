@@ -88,11 +88,11 @@ app = FastAPI(
 # Middleware
 # ─────────────────────────────────────────────
 
-# CORS — restricted to configured origins
+# CORS — open for same-origin deployments; restricted if specific origins are set
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
+    allow_credentials="*" not in CORS_ORIGINS,  # credentials not allowed with wildcard
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -63,11 +63,12 @@ DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./ats_data.db
 # Security
 # ─────────────────────────────────────────────
 API_KEY: str = os.getenv("API_KEY", "dev-api-key-change-in-production")
-CORS_ORIGINS: list[str] = [
-    origin.strip()
-    for origin in os.getenv("CORS_ORIGINS", "http://localhost:8000").split(",")
-    if origin.strip()
-]
+_cors_env = os.getenv("CORS_ORIGINS", "")
+CORS_ORIGINS: list[str] = (
+    [o.strip() for o in _cors_env.split(",") if o.strip()]
+    if _cors_env
+    else ["*"]   # Default: allow all origins (safe for same-origin serving)
+)
 
 
 # ─────────────────────────────────────────────
