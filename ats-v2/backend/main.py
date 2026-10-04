@@ -102,6 +102,16 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
+# Global fallback: always return JSON for unhandled errors (not HTML)
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    log.error("Unhandled exception on %s %s: %s", request.method, request.url.path, exc, exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal server error: {type(exc).__name__}: {str(exc)[:200]}"},
+    )
+
+
 # API key authentication (runs on every request)
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):

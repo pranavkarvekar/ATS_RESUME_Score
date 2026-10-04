@@ -76,7 +76,8 @@ async def compute_contextual_fit_score(
         
     client = AsyncOpenAI(
         api_key=config.GROQ_API_KEY,
-        base_url="https://api.groq.com/openai/v1",
+        base_url=config.GROQ_BASE_URL or "https://api.groq.com/openai/v1",
+        timeout=45.0,  # prevent hanging on Render's 60s request limit
     )
     
     # Truncate JD to prevent token bloat
